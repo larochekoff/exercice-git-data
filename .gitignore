@@ -1,4 +1,35 @@
-*.csv
-*.xlsx
-.env
+# Environnements virtuels
+.venv/
+venv/
+env/
+ENV/
+
+# Caches Python et outils
 __pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Fichiers de construction / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Fichiers de configuration contenant des secrets
+.env
+
+# Données et fichiers volumineux / temporaires
+data/
+*.csv
+*.json
+*.sqlite3
+*.log
+
+# Fichiers système et IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/ 
