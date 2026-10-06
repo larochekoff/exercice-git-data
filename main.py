@@ -1,4 +1,8 @@
 # correction ruff
-def saluer(nom):
-    """Fonction qui salue une personne par son nom."""
-    return f"Bonjour, {nom}!"
+def saluer(nom: str) -> None:
+    """Affiche un message de salutation."""
+    print(f"Bonjour, {nom}")
+
+
+if __name__ == "__main__":
+    saluer("World")
