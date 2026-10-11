@@ -25,7 +25,7 @@ authenticator = stauth.Authenticate(
     names,
     usernames,
     passwords_hashed,
-    cookie_name,
+    cookie_name_app,
     cookie_key,
     cookie_expiry_days
 )
