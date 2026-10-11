@@ -8,8 +8,8 @@ from datetime import datetime
 # ==========================================
 # 1. CONFIGURATION ET CONSTANTES
 # ==========================================
-SHIFT_JOUR = "Shift Jour (8h - 19h)"
-SHIFT_NUIT = "Shift Nuit (19h - 8h)"
+SHIFT_JOUR = "Shift 08h - 19h"
+SHIFT_NUIT = "Shift 19h - 08h"
 
 st.set_page_config(
     page_title="CFDAI - Suivi Opérationnel Flotte & Chantiers",
@@ -30,16 +30,14 @@ if "tarifs" not in st.session_state:
         "mo_nuit": 6000
     }
 
-# Stockage des journaux bruts par shift pour les rapports par shift et globaux
 if "historique_shifts" not in st.session_state:
     st.session_state.historique_shifts = []
 
-# Stockage consolidé par engin (pour éviter la redondance et cumuler les tours/carburant/location)
 if "camions_actifs" not in st.session_state:
-    st.session_state.camions_actifs = {} # {matricule: {type, tours, total_litres, cout_carb, cout_loc, shifts_count}}
+    st.session_state.camions_actifs = {} 
 
 if "chargeuses_actives" not in st.session_state:
-    st.session_state.chargeuses_actives = {} # {id: {conducteur, total_litres, cout_carb, cout_loc, shifts_count}}
+    st.session_state.chargeuses_actives = {} 
 
 if "personnel_actifs" not in st.session_state:
     st.session_state.personnel_actifs = []
@@ -65,10 +63,10 @@ st.session_state.tarifs["loc_chargeuses"] = st.sidebar.number_input(
     "Location Chargeuses (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_chargeuses"], step=5000
 )
 st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
-    "Main d'œuvre Shift Jour", min_value=0, value=st.session_state.tarifs["mo_jour"], step=500
+    "Main d'œuvre Shift 08h-19h", min_value=0, value=st.session_state.tarifs["mo_jour"], step=500
 )
 st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
-    "Main d'œuvre Shift Nuit", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
+    "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
 )
 
 # ==========================================
@@ -88,16 +86,12 @@ tab_saisie, tab_bons, tab_rapport_shift, tab_rapport_global = st.tabs([
 with tab_saisie:
     st.subheader("Enregistrement des Opérations")
     
-    col_d, col_s = st.columns(2)
-    with col_d:
-        date_op = st.date_input("Date", value=datetime.today())
-    with col_s:
-        shift_op = st.selectbox("Sélectionnez le Shift de départ", [SHIFT_JOUR, SHIFT_NUIT])
-
+    date_op = st.date_input("Date de l'opération", value=datetime.today())
     type_saisie = st.radio("Élément à enregistrer", ["Camion", "Chargeuse", "Personnel d'Entretien"], horizontal=True)
 
     if type_saisie == "Camion":
         with st.form("form_camion"):
+            shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_c")
             c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"])
             c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB")
             c_tours = st.number_input("Nombre de tours effectués", min_value=1, value=1, step=1)
@@ -115,7 +109,6 @@ with tab_saisie:
                     immat = c_immat.strip()
                     tarif_c = st.session_state.tarifs["carburant"]
                     
-                    # Gestion de l'historique unique par camion
                     if immat not in st.session_state.camions_actifs:
                         st.session_state.camions_actifs[immat] = {
                             "Type": c_type,
@@ -131,29 +124,27 @@ with tab_saisie:
                     cam["Tours"] += c_tours
                     cam["Shifts_Count"] += 1
                     
-                    # Carburant pris une seule fois tous les 2 shifts
                     if prend_carb:
                         cam["Litres_Carburant"] += c_litres
                         cam["Cout_Carburant"] += c_litres * tarif_c
                     
-                    # Location facturée tous les 2 shifts (commençant au 1er shift)
                     montant_loc_base = st.session_state.tarifs["loc_12_roues"] if c_type == "12 roues" else st.session_state.tarifs["loc_10_roues"]
-                    if cam["Shifts_Count"] % 2 == 1: # 1er shift du cycle de 2
+                    if cam["Shifts_Count"] % 2 == 1:
                         cam["Cout_Location"] += montant_loc_base
 
-                    # Enregistrement pour le rapport du shift
                     st.session_state.historique_shifts.append({
                         "Date": str(date_op),
-                        "Shift": shift_op,
+                        "Shift": shift_camion,
                         "Categorie": "Camion",
                         "Identifiant": immat,
                         "Details": f"{c_type} - {c_tours} tours",
                         "Cout": (c_litres * tarif_c if prend_carb else 0) + (montant_loc_base if cam["Shifts_Count"] % 2 == 1 else 0)
                     })
-                    st.success(f"Camion {immat} mis à jour avec succès !")
+                    st.success(f"Camion {immat} enregistré avec succès pour le {shift_camion} !")
 
     elif type_saisie == "Chargeuse":
         with st.form("form_chargeuse"):
+            shift_chargeuse = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_ch")
             ch_id = st.text_input("Identifiant de la Chargeuse", placeholder="Ex: CHARG-01")
             ch_conducteur = st.text_input("Nom du conducteur", placeholder="Ex: Kouassi Jean")
             
@@ -194,41 +185,42 @@ with tab_saisie:
 
                     st.session_state.historique_shifts.append({
                         "Date": str(date_op),
-                        "Shift": shift_op,
+                        "Shift": shift_chargeuse,
                         "Categorie": "Chargeuse",
                         "Identifiant": cid,
                         "Details": f"Conducteur: {ch_conducteur}",
                         "Cout": (ch_litres * tarif_c if prend_carb_ch else 0) + (montant_loc_ch if ch["Shifts_Count"] % 2 == 1 else 0)
                     })
-                    st.success(f"Chargeuse {cid} mise à jour avec succès !")
+                    st.success(f"Chargeuse {cid} enregistrée avec succès pour le {shift_chargeuse} !")
 
     else:
         with st.form("form_personnel"):
+            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_p")
             p_agents = st.number_input("Nombre d'agents présents", min_value=0, value=5, step=1)
             p_absences = st.number_input("Nombre d'absences", min_value=0, value=0, step=1)
             
-            tarif_mo = st.session_state.tarifs["mo_jour"] if shift_op == SHIFT_JOUR else st.session_state.tarifs["mo_nuit"]
-            st.info(f"Tarif unitaire appliqué ({shift_op}) : {tarif_mo:,.0f} FCFA par agent présent.")
+            tarif_mo = st.session_state.tarifs["mo_jour"] if shift_pers == SHIFT_JOUR else st.session_state.tarifs["mo_nuit"]
+            st.info(f"Tarif unitaire appliqué ({shift_pers}) : {tarif_mo:,.0f} FCFA par agent présent.")
 
             submitted_p = st.form_submit_button("Enregistrer le Personnel")
             if submitted_p:
                 total_mo = p_agents * tarif_mo
                 st.session_state.personnel_actifs.append({
                     "Date": str(date_op),
-                    "Shift": shift_op,
+                    "Shift": shift_pers,
                     "Agents_Presents": p_agents,
                     "Absences": p_absences,
                     "Montant_MO": total_mo
                 })
                 st.session_state.historique_shifts.append({
                     "Date": str(date_op),
-                    "Shift": shift_op,
+                    "Shift": shift_pers,
                     "Categorie": "Personnel",
                     "Identifiant": "Équipe Entretien",
                     "Details": f"Présents: {p_agents}, Absents: {p_absences}",
                     "Cout": total_mo
                 })
-                st.success("Personnel d'entretien enregistré avec succès !")
+                st.success(f"Personnel d'entretien enregistré avec succès pour le {shift_pers} !")
 
 # --- ONGLET 2 : HISTORIQUE UNIQUE PAR ENGIN ---
 with tab_bons:
@@ -283,16 +275,13 @@ with tab_rapport_shift:
 with tab_rapport_global:
     st.subheader("📈 Rapport Global de Toutes les Opérations (CFDAI)")
     
-    # Calculs globaux consolidés camions
     total_tours_glob = sum(c["Tours"] for c in st.session_state.camions_actifs.values()) if st.session_state.camions_actifs else 0
     total_carb_cam = sum(c["Cout_Carburant"] for c in st.session_state.camions_actifs.values()) if st.session_state.camions_actifs else 0
     total_loc_cam = sum(c["Cout_Location"] for c in st.session_state.camions_actifs.values()) if st.session_state.camions_actifs else 0
 
-    # Calculs globaux consolidés chargeuses
     total_carb_ch = sum(ch["Cout_Carburant"] for ch in st.session_state.chargeuses_actives.values()) if st.session_state.chargeuses_actives else 0
     total_loc_ch = sum(ch["Cout_Location"] for ch in st.session_state.chargeuses_actives.values()) if st.session_state.chargeuses_actives else 0
 
-    # Calculs globaux personnel
     total_mo_glob = sum(p["Montant_MO"] for p in st.session_state.personnel_actifs) if st.session_state.personnel_actifs else 0
 
     col_g1, col_g2, col_g3 = st.columns(3)
