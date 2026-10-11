@@ -99,7 +99,6 @@ with tab_saisie:
             c_immat = st.text_input("Immatriculation / Coordonnées du Camion", placeholder="Ex: CI-1234-AB")
             c_tours = st.number_input("Nombre de tours effectués", min_value=1, value=1, step=1)
             
-            # Règle carburant camions : pris 1 seule fois par deux shifts
             prend_carburant = st.checkbox("Prise de carburant pour ce shift (Règle : 1 fois / 2 shifts)")
             c_litres = 0.0
             if prend_carburant:
@@ -113,7 +112,6 @@ with tab_saisie:
                     tarif_carb = st.session_state.tarifs["carburant"]
                     cout_carb = c_litres * tarif_carb if prend_carburant else 0.0
                     
-                    # Vérification location (tous les 2 shifts)
                     facturer_loc = BusinessLogic.verifier_et_appliquer_location_camion(
                         st.session_state.saisies_camions, c_immat, shift_choisi
                     )
@@ -139,7 +137,6 @@ with tab_saisie:
             st.markdown("### Saisie Chargeuse")
             ch_id = st.text_input("Identifiant / Numéro de la Chargeuse", placeholder="Ex: CHARG-01")
             
-            # Règle carburant chargeuses : pris une seule fois par shift
             prend_carburant_ch = st.checkbox("Prise de carburant pour ce shift (Règle : 1 fois par shift)")
             ch_litres = 0.0
             if prend_carburant_ch:
@@ -153,7 +150,6 @@ with tab_saisie:
                     tarif_carb = st.session_state.tarifs["carburant"]
                     cout_carb = ch_litres * tarif_carb if prend_carburant_ch else 0.0
 
-                    # Vérification location chargeuse (tous les 2 shifts)
                     facturer_loc_ch = BusinessLogic.verifier_et_appliquer_location_chargeuse(
                         st.session_state.saisies_chargeuses, ch_id
                     )
@@ -176,7 +172,6 @@ with tab_saisie:
             st.markdown("### Enregistrement Personnel d'Entretien")
             p_nom = st.text_input("Nom de l'équipe ou Agent / Référence", placeholder="Ex: Équipe Maintenance A")
             
-            # Tarif automatique selon le shift choisi
             montant_mo = st.session_state.tarifs["mo_jour"] if shift_choisi == SHIFT_JOUR else st.session_state.tarifs["mo_nuit"]
             st.info(f"Tarif appliqué pour le shift {shift_choisi} : **{montant_mo:,.0f} FCFA**")
 
@@ -197,29 +192,25 @@ with tab_saisie:
 # --- ONGLET 2 : BONS DE SORTIE & SUVI ---
 with tab_bons:
     st.subheader("📋 Bons de Sortie et Suivi des Engins")
-    st.markdown("Affichage des coordonnées, nombre de tours automatiques, carburant et statuts de location.")
-
+    
     col_b1, col_b2 = st.columns(2)
     with col_b1:
         st.markdown("#### 🚚 Suivi Camions")
         if st.session_state.saisies_camions:
-            df_c_view = pd.DataFrame(st.session_state.saisies_camions)
-            st.dataframe(df_c_view, use_container_width=True)
+            st.dataframe(pd.DataFrame(st.session_state.saisies_camions), use_container_width=True)
         else:
             st.info("Aucun bon de sortie camion enregistré.")
 
     with col_b2:
         st.markdown("#### 🏗️ Suivi Chargeuses")
         if st.session_state.saisies_chargeuses:
-            df_ch_view = pd.DataFrame(st.session_state.saisies_chargeuses)
-            st.dataframe(df_ch_view, use_container_width=True)
+            st.dataframe(pd.DataFrame(st.session_state.saisies_chargeuses), use_container_width=True)
         else:
             st.info("Aucun bon de sortie chargeuse enregistré.")
 
     st.markdown("#### 👷 Suivi Personnel d'Entretien")
     if st.session_state.saisies_personnel:
-        df_p_view = pd.DataFrame(st.session_state.saisies_personnel)
-        st.dataframe(df_p_view, use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.saisies_personnel), use_container_width=True)
     else:
         st.info("Aucun enregistrement pour le personnel d'entretien.")
 
@@ -268,8 +259,7 @@ with tab_rapport_jour:
 # --- ONGLET 4 : RAPPORT GLOBAL ---
 with tab_rapport_global:
     st.subheader("📈 Rapport Global de Fin des Opérations")
-    st.markdown("Consolidation globale de l'ensemble des données enregistrées depuis le début.")
-
+    
     rapport_g = BusinessLogic.gerer_rapport_global(
         st.session_state.saisies_camions, 
         st.session_state.saisies_chargeuses, 

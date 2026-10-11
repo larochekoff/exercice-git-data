@@ -15,8 +15,6 @@ class BusinessLogic:
         """
         camion_entries = [e for e in historique_camion if e.get("identifiant") == camion_id]
         nb_shifts_passes = len(camion_entries)
-        
-        # Facturation active uniquement au 1er shift du cycle de 2 shifts (ex: index 0, 2, 4...)
         facturer = (nb_shifts_passes % 2 == 0)
         return facturer
 
@@ -32,7 +30,7 @@ class BusinessLogic:
 
     @staticmethod
     def generer_rapport_journalier(date_selectionnee, camions, chargeuses, personnel):
-        """Génère un DataFrame consolidé pour une date spécifique."""
+        """Génère un dictionnaire de DataFrames consolidés pour une date spécifique."""
         df_c = pd.DataFrame(camions)
         df_ch = pd.DataFrame(chargeuses)
         df_p = pd.DataFrame(personnel)
