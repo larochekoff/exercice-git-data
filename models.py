@@ -1,60 +1,33 @@
 """
-models.py - Structures de données métier sans agrégation trompeuse.
+models.py: Structures de données et initialisation de l'état de session
 """
+import streamlit as st
+from config import (
+    DEFAULT_TARIF_CARBURANT,
+    DEFAULT_LOCATION_12_ROUES,
+    DEFAULT_LOCATION_10_ROUES,
+    DEFAULT_LOCATION_CHARGEUSES,
+    DEFAULT_MAINS_OEUVRE_JOUR,
+    DEFAULT_MAINS_OEUVRE_NUIT
+)
 
-from dataclasses import dataclass
-from datetime import date, time
-from typing import List
+def init_session_state():
+    """Initialise les tables de données et les paramètres dans la session Streamlit."""
+    if "tarifs" not in st.session_state:
+        st.session_state.tarifs = {
+            "carburant": DEFAULT_TARIF_CARBURANT,
+            "loc_12_roues": DEFAULT_LOCATION_12_ROUES,
+            "loc_10_roues": DEFAULT_LOCATION_10_ROUES,
+            "loc_chargeuses": DEFAULT_LOCATION_CHARGEUSES,
+            "mo_jour": DEFAULT_MAINS_OEUVRE_JOUR,
+            "mo_nuit": DEFAULT_MAINS_OEUVRE_NUIT
+        }
 
-@dataclass
-class BonSortieCamion:
-    date_op: date
-    shift: str
-    heure_prise: time
-    num_bon: str
-    matricule: str
-    type_camion: str
-    prise_gazole: bool
-    carburant_litres: float
-    motif_ajustement: str
-    nb_voyages: int = 1
+    if "saisies_camions" not in st.session_state:
+        st.session_state.saisies_camions = []
 
-    def clean_and_validate(self) -> List[str]:
-        erreurs = []
-        self.num_bon = self.num_bon.strip().upper() if self.num_bon else ""
-        self.matricule = self.matricule.strip().upper().replace(" ", "") if self.matricule else ""
+    if "saisies_chargeuses" not in st.session_state:
+        st.session_state.saisies_chargeuses = []
 
-        if not self.num_bon:
-            erreurs.append("Le N° de Bon de sortie est obligatoire.")
-        if not self.matricule:
-            erreurs.append("Le matricule du camion est obligatoire.")
-        if self.prise_gazole and self.carburant_litres <= 0:
-            erreurs.append("Veuillez indiquer le volume de gazole servi (> 0 L).")
-        return erreurs
-
-
-@dataclass
-class ChargeuseEntry:
-    date_op: date
-    shift: str
-    heure_prise: time
-    id_chargeuse: str
-    carburant_l: float
-    motif_ajustement: str
-    en_service_24h: bool
-
-    def clean_and_validate(self) -> List[str]:
-        erreurs = []
-        self.id_chargeuse = self.id_chargeuse.strip().upper() if self.id_chargeuse else ""
-        if not self.id_chargeuse:
-            erreurs.append("L'identifiant de la chargeuse est obligatoire.")
-        return erreurs
-
-
-@dataclass
-class PersonnelEntry:
-    date_op: date
-    shift: str
-    equipe_active: bool
-    effectif_present: int
-    motif_absence: str
+    if "saisies_personnel" not in st.session_state:
+        st.session_state.saisies_personnel = []
