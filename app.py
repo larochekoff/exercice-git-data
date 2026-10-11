@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit import config
 import streamlit_authenticator as stauth
 import pandas as pd
 from datetime import datetime
@@ -22,13 +23,12 @@ import streamlit_authenticator as stauth
 
 # Initialisation de l'authentificateur compatible avec la version 0.2.3
 authenticator = stauth.Authenticate(
-    names,
-    usernames,
-    passwords_hashed,
-    cookie_name_app,
-    cookie_key,
-    cookie_expiry_days
-)
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
+    config['preauthorized']
+)   
 
 # --- ÉCRAN DE CONNEXION ---
 name, authentication_status, username = authenticator.login('Connexion', 'main')
