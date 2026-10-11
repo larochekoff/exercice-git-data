@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit_authenticator as stauth
 import pandas as pd
 from datetime import datetime
 
@@ -10,51 +9,30 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- CONFIGURATION DES UTILISATEURS POUR L'AUTHENTIFICATION ---
-credentials = {
-    'usernames': {
-        'admin': {
-            'name': 'Administrateur',
-            'password': '111'
-        },
-        'logistique': {
-            'name': 'Gestionnaire Logistique',
-            'password': '222'
-        },
-        'comptabilite': {
-            'name': 'Comptabilité',
-            'password': '333'
-        }
-    }
-}
+# --- EN-TÊTE PRINCIPAL ---
+st.title("🚢 Gestion de l'Embarquement Navire - CFDAI")
+st.write("Bienvenue sur l'application de suivi et de gestion logistique d'embarquement navire.")
 
-cookie_name = "navire_auth_cookie"
-cookie_key = "cle_secrete_super_securisee"
-cookie_expiry_days = 30
+# --- BARRE LATÉRALE (FILTRES ET NAVIGATION) ---
+st.sidebar.header("Options & Filtres")
+st.sidebar.info("Application accessible sans restriction.")
 
-# --- INITIALISATION DE LA AUTHENTIFICATION ---
-authenticator = stauth.Authenticate(
-    credentials,
-    cookie_name,
-    cookie_key,
-    cookie_expiry_days
-)
+# --- CONTENU PRINCIPAL ---
+st.header("Tableau de bord logistique")
 
-# --- ÉCRAN DE CONNEXION ---
-name, authentication_status, username = authenticator.login('Connexion', 'main')
+# Exemple de structure / Onglets pour organiser vos fonctionnalités métier
+tab1, tab2, tab3 = st.tabs(["📋 Saisie des Embarquements", "📊 Suivi & Statistiques", "⚙️ Paramètres"])
 
-if authentication_status == False:
-    st.error("Nom d'utilisateur ou mot de passe incorrect")
-elif authentication_status == None:
-    st.warning("Veuillez entrer vos identifiants de connexion")
-elif authentication_status == True:
-    # --- INTERFACE PRINCIPALE DE L'APPLICATION ---
-    authenticator.LogoutButton('Déconnexion', 'sidebar')
-    st.sidebar.success(f"Bienvenue {name} !")
-    
-    st.title("🚢 Gestion de l'Embarquement Navire - CFDAI")
-    st.write("Bienvenue sur l'application de suivi et de gestion logistique.")
-    
-    # Ajoutez ici le reste de votre code métier (tableaux, formulaires, etc.)
-    
-    
+with tab1:
+    st.subheader("Formulaire de saisie")
+    st.write("Saisissez ici les informations liées aux navires et à la cargaison.")
+    # Vous pourrez ajouter vos formulaires (st.form, st.text_input, st.date_input, etc.)
+
+with tab2:
+    st.subheader("Aperçu des données")
+    st.write("Visualisation des embarquements enregistrés.")
+    # Vous pourrez afficher vos données avec st.dataframe(), st.bar_chart(), etc.
+
+with tab3:
+    st.subheader("Configuration")
+    st.write("Paramètres généraux de l'application.")
