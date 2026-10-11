@@ -11,14 +11,20 @@ st.set_page_config(
 )
 
 # --- CONFIGURATION DES UTILISATEURS POUR L'AUTHENTIFICATION ---
-names = ["Administrateur", "Gestionnaire Logistique"]
-usernames = ["admin", "logistique"]
-passwords_hashed = ["$2y$12$e8...exemples_hash...", "$2y$12$e8...exemples_hash..."] # (Conservez vos hashes actuels)
-
 credentials = {
     'usernames': {
-        usernames[0]: {'name': names[0], 'password': passwords_hashed[0]},
-        usernames[1]: {'name': names[1], 'password': passwords_hashed[1]}
+        'admin': {
+            'name': 'Administrateur',
+            'password': '111'
+        },
+        'logistique': {
+            'name': 'Gestionnaire Logistique',
+            'password': '222'
+        },
+        'comptabilite': {
+            'name': 'Comptabilité',
+            'password': '333'
+        }
     }
 }
 
@@ -26,7 +32,7 @@ cookie_name = "navire_auth_cookie"
 cookie_key = "cle_secrete_super_securisee"
 cookie_expiry_days = 30
 
-# --- INITIALISATION DE L'AUTHENTIFICATEUR ---
+# --- INITIALISATION DE LA AUTHENTIFICATION ---
 authenticator = stauth.Authenticate(
     credentials,
     cookie_name,
@@ -50,3 +56,5 @@ elif authentication_status == True:
     st.write("Bienvenue sur l'application de suivi et de gestion logistique.")
     
     # Ajoutez ici le reste de votre code métier (tableaux, formulaires, etc.)
+    
+    
