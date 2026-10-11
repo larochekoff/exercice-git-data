@@ -18,13 +18,16 @@ passwords_hashed = [
     "$2b$12$X7V5.gXmU1234567890abcdef.1234567890abcdef1234567890ab"  # port2026
 ]
 
+import streamlit_authenticator as stauth
+
+# Initialisation de l'authentificateur compatible avec la version 0.2.3
 authenticator = stauth.Authenticate(
     names,
     usernames,
-    passwords_hashed,
-    cookie_name="embarquement_navire_cookie",
-    cookie_key="cfdai_secret_signature_key_2026",
-    cookie_expiry_days=30
+    passwords,
+    cookie_name,
+    cookie_key,
+    cookie_expiry_days
 )
 
 # --- ÉCRAN DE CONNEXION ---
