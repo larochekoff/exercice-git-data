@@ -1,77 +1,117 @@
 """
-app.py: Application principale Streamlit pour le suivi opérationnel et financier
+app.py: Application de Suivi Opérationnel et Financier (Version Fichier Unique)
 """
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-from config import SHIFT_JOUR, SHIFT_NUIT
-from models import init_session_state
-from services import BusinessLogic
+# ==========================================
+# 1. CONFIGURATION ET CONSTANTES
+# ==========================================
+SHIFT_JOUR = "8h - 19h"
+SHIFT_NUIT = "19h - 8h"
 
-# Configuration de la page
+# ==========================================
+# 2. LOGIQUE MÉTIER ET RÈGLES DE GESTION
+# ==========================================
+class BusinessLogic:
+    @staticmethod
+    def verifier_et_appliquer_location_camion(historique_camion, camion_id):
+        """Vérifie si la location doit être facturée (1 fois tous les 2 shifts)."""
+        camion_entries = [e for e in historique_camion if e.get("identifiant") == camion_id]
+        nb_shifts_passes = len(camion_entries)
+        return (nb_shifts_passes % 2 == 0)
+
+    @staticmethod
+    def verifier_et_appliquer_location_chargeuse(historique_chargeuse, chargeuse_id):
+        """Vérifie si la location de la chargeuse doit être facturée (1 fois tous les 2 shifts)."""
+        chargeuse_entries = [e for e in historique_chargeuse if e.get("identifiant") == chargeuse_id]
+        nb_shifts_passes = len(chargeuse_entries)
+        return (nb_shifts_passes % 2 == 0)
+
+    @staticmethod
+    def gerer_rapport_journalier(date_selectionnee, camions, chargeuses, personnel):
+        df_c = pd.DataFrame(camions)
+        df_ch = pd.DataFrame(chargeuses)
+        df_p = pd.DataFrame(personnel)
+
+        res = {}
+        res["camions"] = df_c[df_c["Date"] == str(date_selectionnee)] if not df_c.empty and "Date" in df_c.columns else pd.DataFrame()
+        res["chargeuses"] = df_ch[df_ch["Date"] == str(date_selectionnee)] if not df_ch.empty and "Date" in df_ch.columns else pd.DataFrame()
+        res["personnel"] = df_p[df_p["Date"] == str(date_selectionnee)] if not df_p.empty and "Date" in df_p.columns else pd.DataFrame()
+        return res
+
+    @staticmethod
+    def gerer_rapport_global(camions, chargeuses, personnel):
+        return {
+            "camions": pd.DataFrame(camions),
+            "chargeuses": pd.DataFrame(chargeuses),
+            "personnel": pd.DataFrame(personnel)
+        }
+
+# ==========================================
+# 3. INITIALISATION DE L'ÉTAT DE SESSION
+# ==========================================
 st.set_page_config(
     page_title="Suivi Opérationnel Flotte & Chantiers",
     page_icon="🏗️",
     layout="wide"
 )
 
-# Initialisation de l'état
-init_session_state()
+if "tarifs" not in st.session_state:
+    st.session_state.tarifs = {
+        "carburant": 750,
+        "loc_12_roues": 150000,
+        "loc_10_roues": 120000,
+        "loc_chargeuses": 100000,
+        "mo_jour": 5000,
+        "mo_nuit": 6000
+    }
+
+if "saisies_camions" not in st.session_state:
+    st.session_state.saisies_camions = []
+
+if "saisies_chargeuses" not in st.session_state:
+    st.session_state.saisies_chargeuses = []
+
+if "saisies_personnel" not in st.session_state:
+    st.session_state.saisies_personnel = []
 
 # ==========================================
-# PANNEAU LATÉRAL : TARIFS ET PARAMÈTRES
+# 4. PANNEAU LATÉRAL : TARIFS ET PARAMÈTRES
 # ==========================================
 st.sidebar.title("⚙️ Paramètres & Tarifs")
 st.sidebar.markdown("---")
 
 st.sidebar.subheader("Tarif Carburant")
 st.session_state.tarifs["carburant"] = st.sidebar.number_input(
-    "Tarif carburant (FCFA / litre)", 
-    min_value=0, 
-    value=st.session_state.tarifs["carburant"], 
-    step=25
+    "Tarif carburant (FCFA / litre)", min_value=0, value=st.session_state.tarifs["carburant"], step=25
 )
 
 st.sidebar.subheader("Montants de Location")
 st.session_state.tarifs["loc_12_roues"] = st.sidebar.number_input(
-    "Location 12 roues (par 2 shifts)", 
-    min_value=0, 
-    value=st.session_state.tarifs["loc_12_roues"], 
-    step=5000
+    "Location 12 roues (par 2 shifts)", min_value=0, value=st.session_state.tarifs["loc_12_roues"], step=5000
 )
 st.session_state.tarifs["loc_10_roues"] = st.sidebar.number_input(
-    "Location 10 roues (par 2 shifts)", 
-    min_value=0, 
-    value=st.session_state.tarifs["loc_10_roues"], 
-    step=5000
+    "Location 10 roues (par 2 shifts)", min_value=0, value=st.session_state.tarifs["loc_10_roues"], step=5000
 )
 st.session_state.tarifs["loc_chargeuses"] = st.sidebar.number_input(
-    "Location Chargeuses (par 2 shifts)", 
-    min_value=0, 
-    value=st.session_state.tarifs["loc_chargeuses"], 
-    step=5000
+    "Location Chargeuses (par 2 shifts)", min_value=0, value=st.session_state.tarifs["loc_chargeuses"], step=5000
 )
 
 st.sidebar.subheader("Personnel d'Entretien (par shift)")
 st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
-    "Shift Jour (8h - 19h)", 
-    min_value=0, 
-    value=st.session_state.tarifs["mo_jour"], 
-    step=500
+    "Shift Jour (8h - 19h)", min_value=0, value=st.session_state.tarifs["mo_jour"], step=500
 )
 st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
-    "Shift Nuit (19h - 8h)", 
-    min_value=0, 
-    value=st.session_state.tarifs["mo_nuit"], 
-    step=500
+    "Shift Nuit (19h - 8h)", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
 )
 
 # ==========================================
-# INTERFACE PRINCIPALE
+# 5. INTERFACE PRINCIPALE (ONGLETS)
 # ==========================================
 st.title("🚜 Suivi Opérationnel : Flotte, Chargeuses & Personnel")
-st.markdown("Gestion des bons de sortie, des consommations de carburant, des locations (cycles 24h / 2 shifts) et des rapports.")
+st.markdown("Gestion des bons de sortie, des consommations de carburant, des locations et des rapports.")
 
 tab_saisie, tab_bons, tab_rapport_jour, tab_rapport_global = st.tabs([
     "📝 Saisie Opérationnelle", 
@@ -113,7 +153,7 @@ with tab_saisie:
                     cout_carb = c_litres * tarif_carb if prend_carburant else 0.0
                     
                     facturer_loc = BusinessLogic.verifier_et_appliquer_location_camion(
-                        st.session_state.saisies_camions, c_immat, shift_choisi
+                        st.session_state.saisies_camions, c_immat
                     )
                     montant_loc_base = st.session_state.tarifs["loc_12_roues"] if c_type == "12 roues" else st.session_state.tarifs["loc_10_roues"]
                     cout_loc = montant_loc_base if facturer_loc else 0.0
@@ -130,7 +170,7 @@ with tab_saisie:
                         "Cout_Location": cout_loc
                     }
                     st.session_state.saisies_camions.append(enregistrement)
-                    st.success(f"Camion {c_immat} enregistré avec succès pour le shift {shift_choisi} !")
+                    st.success(f"Camion {c_immat} enregistré avec succès !")
 
     elif choix_type_saisie == "Chargeuse":
         with st.form("form_chargeuse"):
@@ -165,7 +205,7 @@ with tab_saisie:
                         "Cout_Location": cout_loc_ch
                     }
                     st.session_state.saisies_chargeuses.append(enregistrement_ch)
-                    st.success(f"Chargeuse {ch_id} enregistrée pour le shift {shift_choisi} !")
+                    st.success(f"Chargeuse {ch_id} enregistrée avec succès !")
 
     else:
         with st.form("form_personnel"):
@@ -187,9 +227,9 @@ with tab_saisie:
                         "Montant_MO": montant_mo
                     }
                     st.session_state.saisies_personnel.append(enregistrement_p)
-                    st.success(f"Personnel d'entretien enregistré pour le shift {shift_choisi} !")
+                    st.success("Personnel d'entretien enregistré avec succès !")
 
-# --- ONGLET 2 : BONS DE SORTIE & SUVI ---
+# --- ONGLET 2 : BONS DE SORTIE & SUIVI ---
 with tab_bons:
     st.subheader("📋 Bons de Sortie et Suivi des Engins")
     
@@ -231,28 +271,23 @@ with tab_rapport_jour:
     st.markdown("##### 1. Camions")
     if not rapport_j["camions"].empty:
         st.dataframe(rapport_j["camions"], use_container_width=True)
-        total_carb_c = rapport_j["camions"]["Cout_Carburant"].sum()
-        total_loc_c = rapport_j["camions"]["Cout_Location"].sum()
-        st.metric("Total Carburant Camions", f"{total_carb_c:,.0f} FCFA")
-        st.metric("Total Location Camions", f"{total_loc_c:,.0f} FCFA")
+        st.metric("Total Carburant Camions", f"{rapport_j['camions']['Cout_Carburant'].sum():,.0f} FCFA")
+        st.metric("Total Location Camions", f"{rapport_j['camions']['Cout_Location'].sum():,.0f} FCFA")
     else:
         st.info("Aucune donnée camions pour cette date.")
 
     st.markdown("##### 2. Chargeuses")
     if not rapport_j["chargeuses"].empty:
         st.dataframe(rapport_j["chargeuses"], use_container_width=True)
-        total_carb_ch = rapport_j["chargeuses"]["Cout_Carburant"].sum()
-        total_loc_ch = rapport_j["chargeuses"]["Cout_Location"].sum()
-        st.metric("Total Carburant Chargeuses", f"{total_carb_ch:,.0f} FCFA")
-        st.metric("Total Location Chargeuses", f"{total_loc_ch:,.0f} FCFA")
+        st.metric("Total Carburant Chargeuses", f"{rapport_j['chargeuses']['Cout_Carburant'].sum():,.0f} FCFA")
+        st.metric("Total Location Chargeuses", f"{rapport_j['chargeuses']['Cout_Location'].sum():,.0f} FCFA")
     else:
         st.info("Aucune donnée chargeuses pour cette date.")
 
     st.markdown("##### 3. Personnel d'Entretien")
     if not rapport_j["personnel"].empty:
         st.dataframe(rapport_j["personnel"], use_container_width=True)
-        total_mo = rapport_j["personnel"]["Montant_MO"].sum()
-        st.metric("Total Main d'Œuvre Entretien", f"{total_mo:,.0f} FCFA")
+        st.metric("Total Main d'Œuvre Entretien", f"{rapport_j['personnel']['Montant_MO'].sum():,.0f} FCFA")
     else:
         st.info("Aucune donnée personnel pour cette date.")
 
