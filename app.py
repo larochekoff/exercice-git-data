@@ -1,38 +1,70 @@
-import streamlit as st
+"""
+services.py: Logique métier, calculs et gestion des règles (carburant, location, rapports)
+"""
 import pandas as pd
-from datetime import datetime
 
-# --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(
-    page_title="Embarquement Navire CFDAI",
-    page_icon="🚢",
-    layout="wide"
-)
+class BusinessLogic:
+    @staticmethod
+    inerte = None
 
-# --- EN-TÊTE PRINCIPAL ---
-st.title("🚢 Gestion de l'Embarquement Navire - CFDAI")
-st.write("Bienvenue sur l'application de suivi et de gestion logistique d'embarquement navire.")
+    @staticmethod
+    def calculer_carburant(litres, prix_litre):
+        return litres * prix_litre
 
-# --- BARRE LATÉRALE (FILTRES ET NAVIGATION) ---
-st.sidebar.header("Options & Filtres")
-st.sidebar.info("Application accessible sans restriction.")
+    @staticmethod
+    def verifier_et_appliquer_location_camion(historique_camion, camion_id, shift_actuel):
+        """
+        Vérifie si la location doit être facturée (1 fois tous les 2 shifts, en comptant à partir du 1er shift).
+        """
+        # Filtrer l'historique pour ce camion spécifique
+        camion_entries = [e for e in historique_camion if e.get("identifiant") == camion_id]
+        nb_shifts_passes = len(camion_entries)
+        
+        # Facturation active uniquement au 1er shift du cycle de 2 shifts (ex: index 0, 2, 4...)
+        facturer = (nb_shifts_passes % 2 == 0)
+        return facturer
 
-# --- CONTENU PRINCIPAL ---
-st.header("Tableau de bord logistique")
+    @staticmethod
+    def verifier_et_appliquer_location_chargeuse(historique_chargeuse, chargeuse_id):
+        """
+        Règle similaire pour les chargeuses (location tous les 2 shifts).
+        """
+        chargeuse_entries = [e for e in historique_chargeuse if e.get("identifiant") == chargeuse_id]
+        nb_shifts_passes = len(chargeuse_entries)
+        facturer = (nb_shifts_passes % 2 == 0)
+        return facturer
 
-# Exemple de structure / Onglets pour organiser vos fonctionnalités métier
-tab1, tab2, tab3 = st.tabs(["📋 Saisie des Embarquements", "📊 Suivi & Statistiques", "⚙️ Paramètres"])
+    @staticmethod
+    def generer_rapport_journalier(date_selectionnee, camions, chargeuses, personnel):
+        """Génère un DataFrame consolidé pour une date spécifique."""
+        df_c = pd.DataFrame(camions)
+        df_ch = pd.DataFrame(chargeuses)
+        df_p = pd.DataFrame(personnel)
 
-with tab1:
-    st.subheader("Formulaire de saisie")
-    st.write("Saisissez ici les informations liées aux navires et à la cargaison.")
-    # Vous pourrez ajouter vos formulaires (st.form, st.text_input, st.date_input, etc.)
+        # Filtrage par date si les dataframes ne sont pas vides
+        res = {}
+        if not df_c.empty and "Date" in df_c.columns:
+            res["camions"] = df_c[df_c["Date"] == str(date_selectionnee)]
+        else:
+            res["camions"] = pd.DataFrame()
 
-with tab2:
-    st.subheader("Aperçu des données")
-    st.write("Visualisation des embarquements enregistrés.")
-    # Vous pourrez afficher vos données avec st.dataframe(), st.bar_chart(), etc.
+        if not df_ch.empty and "Date" in df_ch.columns:
+            res["chargeuses"] = df_ch[df_ch["Date"] == str(date_selectionnee)]
+        else:
+            res["chargeuses"] = pd.DataFrame()
 
-with tab3:
-    st.subheader("Configuration")
-    st.write("Paramètres généraux de l'application.")
+        if not df_p.empty and "Date" in df_p.columns:
+            res["personnel"] = df_p[df_p["Date"] == str(date_selectionnee)]
+        else:
+            res["personnel"] = pd.DataFrame()
+
+        return res
+
+    @staticmethod
+    def generer_rapport_global(camions, chargeuses, personnel):
+        """Consolide l'ensemble des opérations de tous les jours."""
+        return {
+            "camions": pd.DataFrame(camions),
+            "chargeuses": pd.DataFrame(chargeuses),
+            "personnel": pd.DataFrame(personnel)
+        }
