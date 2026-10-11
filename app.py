@@ -24,7 +24,7 @@ import streamlit_authenticator as stauth
 authenticator = stauth.Authenticate(
     names,
     usernames,
-    passwords,
+    passwords_hashed,
     cookie_name,
     cookie_key,
     cookie_expiry_days
