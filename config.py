@@ -1,23 +1,15 @@
 """
-config.py - Paramètres globaux, grille tarifaire et identification.
+config.py: Configuration et constantes de l'application
 """
 
-from dataclasses import dataclass
+# Horaires des shifts
+SHIFT_JOUR = "8h - 19h"
+SHIFT_NUIT = "19h - 8h"
 
-@dataclass(frozen=True)
-class BusinessConfig:
-    NOM_STRUCTURE: str = "--- Embarquement Navire CFDAI ---"
-
-    DEFAULT_PRIX_CARBURANT_LITRE: float = 715.0
-    DEFAULT_TARIF_10_ROUES_24H: float = 150000.0
-    DEFAULT_TARIF_12_ROUES_24H: float = 200000.0
-    DEFAULT_TARIF_CHARGEUSE_24H: float = 280000.0
-    DEFAULT_TARIF_PERS_JOUR: float = 50000.0
-    DEFAULT_TARIF_PERS_NUIT: float = 60000.0
-
-    SHIFT_JOUR_LABEL: str = "Jour (08h00 ➔ 19h00)"
-    SHIFT_NUIT_LABEL: str = "Nuit (19h00 ➔ 08h00 J+1)"
-
-    CODE_SECRET_RESET: str = "RESET-CAJOU"
-
-CONFIG = BusinessConfig()
+# Tarifs par défaut (FCFA)
+DEFAULT_TARIF_CARBURANT = 750
+DEFAULT_LOCATION_12_ROUES = 150000
+DEFAULT_LOCATION_10_ROUES = 120000
+DEFAULT_LOCATION_CHARGEUSES = 100000
+DEFAULT_MAINS_OEUVRE_JOUR = 5000
+DEFAULT_MAINS_OEUVRE_NUIT = 6000
