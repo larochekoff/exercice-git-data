@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec réinitialisation automatique des champs)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI
 """
 import streamlit as st
 import pandas as pd
@@ -40,7 +40,6 @@ if "tarifs" not in st.session_state:
 if "historique_bons" not in st.session_state:
     st.session_state.historique_bons = []
 
-# Compteur pour forcer le nettoyage des champs du formulaire de camion
 if "form_camion_counter" not in st.session_state:
     st.session_state.form_camion_counter = 0
 
@@ -191,7 +190,6 @@ with tab_saisie:
     type_saisie = st.radio("Type d'élément à enregistrer", ["Camion", "Chargeuse", "Personnel d'Entretien"], horizontal=True)
 
     if type_saisie == "Camion":
-        # Utilisation d'un compteur dynamique pour réinitialiser le formulaire
         cnt = st.session_state.form_camion_counter
         with st.form(f"form_camion_{cnt}"):
             shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_c_{cnt}")
@@ -199,15 +197,25 @@ with tab_saisie:
             c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
             c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001", key=f"bon_c_{cnt}")
             
-            camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()]
-            prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
-            carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
+            # Analyse de l'historique et du dernier shift enregistré pour ce camion
+            camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant"] == c_immat.strip().upper()] if c_immat else []
+            
+            carburant_autorise_ce_shift = True
+            if camions_precedents:
+                dernier_bon = camions_precedents[-1]
+                dernier_shift = dernier_bon.get("Shift")
+                
+                # Si le dernier enregistrement s'est fait au shift précédent et qu'il y a eu du carburant, ou si on est sur le même shift sans alternance, on verrouille
+                prises_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
+                if prises_effectuees % 2 == 1:
+                    # Le cycle précédent a consommé du carburant, le shift actuel (consécutif) doit être bloqué
+                    carburant_autorise_ce_shift = False
 
             st.markdown("---")
             if carburant_autorise_ce_shift:
                 prend_carb = st.checkbox("Prise de carburant pour ce shift (Autorisé - 1er shift du cycle)", value=True, key=f"carb_chk_{cnt}")
             else:
-                prend_carb = st.checkbox("Prise de carburant pour ce shift (Bloqué - Déjà pris au shift précédent)", value=False, disabled=True, key=f"carb_chk_{cnt}")
+                prend_carb = st.checkbox("Prise de carburant pour ce shift (Verrouillé - Déjà pris au shift précédent)", value=False, disabled=True, key=f"carb_chk_{cnt}")
 
             c_litres = 0.0
             if prend_carb and carburant_autorise_ce_shift:
@@ -244,7 +252,6 @@ with tab_saisie:
                     }
                     st.session_state.historique_bons.append(enregistrement_bon)
                     st.success(f"Bon camion n°{num_bon} enregistré pour le véhicule {immat} !")
-                    # Incrémentation du compteur pour réinitialiser le formulaire au prochain tour
                     st.session_state.form_camion_counter += 1
                     st.rerun()
 
