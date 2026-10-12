@@ -275,6 +275,7 @@ with tab_rapport_shift:
 with tab_rapport_global:
     st.subheader("📈 Rapport Global de Toutes les Opérations (CFDAI)")
     
+    nb_camions_total = len(st.session_state.camions_actifs)
     total_tours_glob = sum(c["Tours"] for c in st.session_state.camions_actifs.values()) if st.session_state.camions_actifs else 0
     total_carb_cam = sum(c["Cout_Carburant"] for c in st.session_state.camions_actifs.values()) if st.session_state.camions_actifs else 0
     total_loc_cam = sum(c["Cout_Location"] for c in st.session_state.camions_actifs.values()) if st.session_state.camions_actifs else 0
@@ -286,6 +287,7 @@ with tab_rapport_global:
 
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
+        st.metric("Nombre Total de Camions Engagés", f"{nb_camions_total} camion(s)")
         st.metric("Total Tours Camions", f"{total_tours_glob} tours")
         st.metric("Coût Carburant Camions", f"{total_carb_cam:,.0f} FCFA")
         st.metric("Location Camions", f"{total_loc_cam:,.0f} FCFA")
@@ -294,6 +296,19 @@ with tab_rapport_global:
         st.metric("Location Chargeuses", f"{total_loc_ch:,.0f} FCFA")
     with col_g3:
         st.metric("Total Main d'Œuvre Entretien", f"{total_mo_glob:,.0f} FCFA")
+
+    st.markdown("---")
+    st.markdown("### 🏆 Top 5 des Camions les Plus Performants (Plus grand nombre de tours)")
+    
+    if st.session_state.camions_actifs:
+        df_camions = pd.DataFrame(list(st.session_state.camions_actifs.values()))
+        top_5_camions = df_camions.sort_values(by="Tours", ascending=False).head(5)
+        st.dataframe(
+            top_5_camions[["Matricule", "Type", "Tours", "Litres_Carburant", "Cout_Carburant", "Cout_Location"]],
+            use_container_width=True
+        )
+    else:
+        st.info("Aucun camion enregistré pour générer le Top 5.")
 
     cout_total_global = total_carb_cam + total_loc_cam + total_carb_ch + total_loc_ch + total_mo_glob
     st.markdown("---")
