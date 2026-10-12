@@ -192,18 +192,20 @@ with tab_saisie:
     if type_saisie == "Camion":
         cnt = st.session_state.form_camion_counter
         
-        # Éléments placés hors du formulaire pour être réactifs en temps réel
         shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_c_{cnt}")
         c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"], key=f"type_c_{cnt}")
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
-        # Calcul dynamique et immédiat du verrouillage carburant selon l'historique du camion
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()] if c_immat else []
+        # LOGIQUE D'ALTERNANCE STRICTE : 
+        # On vérifie le DERNIER bon enregistré pour ce matricule précis.
+        immat_propre = c_immat.strip().upper() if c_immat else ""
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
         carburant_autorise_ce_shift = True
         if camions_precedents:
-            prises_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
-            if prises_effectuees % 2 == 1:
+            dernier_bon = camions_precedents[-1]
+            # Si le dernier bon enregistré a pris du carburant (> 0L), le shift actuel EST VERROUILLÉ
+            if dernier_bon.get("Litres_Carburant", 0.0) > 0:
                 carburant_autorise_ce_shift = False
 
         with st.form(f"form_camion_{cnt}"):
