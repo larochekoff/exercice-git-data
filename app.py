@@ -191,21 +191,24 @@ with tab_saisie:
 
     if type_saisie == "Camion":
         cnt = st.session_state.form_camion_counter
+        
+        # Éléments placés hors du formulaire pour être réactifs en temps réel
+        shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_c_{cnt}")
+        c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"], key=f"type_c_{cnt}")
+        c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
+        
+        # Calcul dynamique et immédiat du verrouillage carburant selon l'historique du camion
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()] if c_immat else []
+        
+        carburant_autorise_ce_shift = True
+        if camions_precedents:
+            prises_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
+            if prises_effectuees % 2 == 1:
+                carburant_autorise_ce_shift = False
+
         with st.form(f"form_camion_{cnt}"):
-            shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_c_{cnt}")
-            c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"], key=f"type_c_{cnt}")
-            c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
             c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001", key=f"bon_c_{cnt}")
             
-            # Correction de la syntaxe ici (parenthèse fermante corrigée)
-            camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()] if c_immat else []
-            
-            carburant_autorise_ce_shift = True
-            if camions_precedents:
-                prises_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
-                if prises_effectuees % 2 == 1:
-                    carburant_autorise_ce_shift = False
-
             st.markdown("---")
             if carburant_autorise_ce_shift:
                 prend_carb = st.checkbox("Prise de carburant pour ce shift (Autorisé - 1er shift du cycle)", value=True, key=f"carb_chk_{cnt}")
