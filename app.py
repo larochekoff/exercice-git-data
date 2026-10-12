@@ -261,7 +261,7 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur")] == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
