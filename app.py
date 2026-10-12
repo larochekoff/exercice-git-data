@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec Export PDF)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Sans N° de bon pour les chargeuses)
 """
 import streamlit as st
 import pandas as pd
@@ -60,7 +60,6 @@ def generer_pdf_shift(date_str, shift_str, df_shift):
     elements.append(Spacer(1, 15))
     
     if not df_shift.empty:
-        # Sélection des colonnes pertinentes pour le PDF
         cols_to_show = [c for c in ["Categorie", "Identifiant", "Conducteur", "Numero_Bon", "Litres_Carburant", "Cout_Total"] if c in df_shift.columns]
         table_data = [cols_to_show] + df_shift[cols_to_show].astype(str).values.tolist()
         
@@ -182,7 +181,7 @@ tab_saisie, tab_modif, tab_bons, tab_rapport_shift, tab_rapport_global = st.tabs
 
 # --- ONGLET 1 : SAISIE OPÉRATIONNELLE ---
 with tab_saisie:
-    st.subheader("Enregistrement des Opérations par Bon de Sortie")
+    st.subheader("Enregistrement des Opérations")
     
     date_op = st.date_input("Date de l'opération", value=datetime.today())
     type_saisie = st.radio("Type d'élément à enregistrer", ["Camion", "Chargeuse", "Personnel d'Entretien"], horizontal=True)
@@ -247,7 +246,6 @@ with tab_saisie:
         with st.form("form_chargeuse"):
             shift_chargeuse = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_ch")
             ch_conducteur = st.text_input("Nom du conducteur de la Chargeuse", placeholder="Ex: Kouassi Jean")
-            ch_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-CH-01")
             
             prend_carb_ch = st.checkbox("Prise de carburant pour ce shift (Comptabilisé 1 fois par shift)", value=True)
             ch_litres = 0.0
@@ -256,31 +254,30 @@ with tab_saisie:
 
             submitted_ch = st.form_submit_button("Enregistrer la Chargeuse")
             if submitted_ch:
-                if not ch_conducteur.strip() or not ch_num_bon.strip():
-                    st.error("Veuillez renseigner le nom du conducteur et le numéro de bon.")
+                if not ch_conducteur.strip():
+                    st.error("Veuillez renseigner le nom du conducteur.")
                 else:
                     conducteur = ch_conducteur.strip().title()
-                    num_bon = ch_num_bon.strip()
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
-                        "ID_Unique": f"CH-{conducteur}-{num_bon}-{datetime.now().strftime('%H%M%S')}",
+                        "ID_Unique": f"CH-{conducteur}-{datetime.now().strftime('%H%M%S%f')}",
                         "Date": str(date_op),
                         "Shift": shift_chargeuse,
                         "Categorie": "Chargeuse",
                         "Conducteur": conducteur,
-                        "Numero_Bon": num_bon,
+                        "Numero_Bon": "N/A",
                         "Litres_Carburant": ch_litres if prend_carb_ch else 0.0,
                         "Cout_Carburant": cout_carb_ch,
                         "Cout_Location": montant_loc_ch,
                         "Cout_Total": cout_carb_ch + montant_loc_ch
                     }
                     st.session_state.historique_bons.append(enregistrement_ch)
-                    st.success(f"Bon chargeuse enregistré pour le conducteur {conducteur} !")
+                    st.success(f"Intervention chargeuse enregistrée pour le conducteur {conducteur} !")
 
     else:
         with st.form("form_personnel"):
@@ -348,11 +345,11 @@ with tab_bons:
         else:
             st.info("Aucun bon camion enregistré.")
 
-        st.markdown("#### 🏗️ Historique Chargeuses")
+        st.markdown("#### 🏗️ Historique Chargeuses (Par Conducteur)")
         chargeuses_bons = df_historique[df_historique["Categorie"] == "Chargeuse"]
         if not chargeuses_bons.empty:
             chargeuses_resume = chargeuses_bons.groupby("Conducteur").agg(
-                Nombre_Interventions=("Numero_Bon", "count"),
+                Nombre_Interventions=("Shift", "count"),
                 Total_Carburant_Litres=("Litres_Carburant", "sum"),
                 Montant_Total_Carburant=("Cout_Carburant", "sum"),
                 Montant_Total_Location=("Cout_Location", "sum"),
@@ -384,7 +381,6 @@ with tab_rapport_shift:
             total_shift_cout = df_shift_filtered["Cout_Total"].sum()
             st.metric("Coût Total pour ce Shift", f"{total_shift_cout:,.0f} FCFA")
             
-            # Bouton de téléchargement PDF du shift
             pdf_buffer = generer_pdf_shift(str(sel_date), sel_shift, df_shift_filtered)
             st.download_button(
                 label="📥 Télécharger le Rapport du Shift en PDF",
@@ -447,7 +443,6 @@ with tab_rapport_global:
         st.markdown("---")
         st.markdown(f"### 💰 Coût Total Global de l'Opération CFDAI : **{cout_total_global:,.0f} FCFA**")
         
-        # Bouton de téléchargement PDF global
         pdf_global_buffer = generer_pdf_global(df_g)
         st.download_button(
             label="📥 Télécharger le Rapport Global en PDF",
