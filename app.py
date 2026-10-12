@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Sans N° de bon pour les chargeuses)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Script complet et corrigé)
 """
 import streamlit as st
 import pandas as pd
@@ -39,9 +39,6 @@ if "tarifs" not in st.session_state:
 
 if "historique_bons" not in st.session_state:
     st.session_state.historique_bons = []
-
-if "personnel_actifs" not in st.session_state:
-    st.session_state.personnel_actifs = []
 
 # ==========================================
 # 3. FONCTIONS DE GÉNÉRATION DES PDF
@@ -261,7 +258,7 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur")] == conducteur]
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
