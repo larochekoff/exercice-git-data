@@ -197,18 +197,13 @@ with tab_saisie:
             c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
             c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001", key=f"bon_c_{cnt}")
             
-            # Analyse de l'historique et du dernier shift enregistré pour ce camion
-            camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant"] == c_immat.strip().upper()] if c_immat else []
+            # Correction de la syntaxe ici (parenthèse fermante corrigée)
+            camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()] if c_immat else []
             
             carburant_autorise_ce_shift = True
             if camions_precedents:
-                dernier_bon = camions_precedents[-1]
-                dernier_shift = dernier_bon.get("Shift")
-                
-                # Si le dernier enregistrement s'est fait au shift précédent et qu'il y a eu du carburant, ou si on est sur le même shift sans alternance, on verrouille
                 prises_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
                 if prises_effectuees % 2 == 1:
-                    # Le cycle précédent a consommé du carburant, le shift actuel (consécutif) doit être bloqué
                     carburant_autorise_ce_shift = False
 
             st.markdown("---")
