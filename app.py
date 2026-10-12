@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Gestion stricte carburant 2 shifts)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec réinitialisation automatique des champs)
 """
 import streamlit as st
 import pandas as pd
@@ -39,6 +39,13 @@ if "tarifs" not in st.session_state:
 
 if "historique_bons" not in st.session_state:
     st.session_state.historique_bons = []
+
+# Compteur pour forcer le nettoyage des champs du formulaire de camion
+if "form_camion_counter" not in st.session_state:
+    st.session_state.form_camion_counter = 0
+
+if "form_chargeuse_counter" not in st.session_state:
+    st.session_state.form_chargeuse_counter = 0
 
 # ==========================================
 # 3. FONCTIONS DE GÉNÉRATION DES PDF
@@ -184,31 +191,27 @@ with tab_saisie:
     type_saisie = st.radio("Type d'élément à enregistrer", ["Camion", "Chargeuse", "Personnel d'Entretien"], horizontal=True)
 
     if type_saisie == "Camion":
-        with st.form("form_camion"):
-            shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_c")
-            c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"])
-            c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB")
-            c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001")
+        # Utilisation d'un compteur dynamique pour réinitialiser le formulaire
+        cnt = st.session_state.form_camion_counter
+        with st.form(f"form_camion_{cnt}"):
+            shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_c_{cnt}")
+            c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"], key=f"type_c_{cnt}")
+            c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
+            c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001", key=f"bon_c_{cnt}")
             
-            # Analyse stricte des prises de carburant précédentes pour ce camion
             camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()]
-            
-            # On cherche le nombre de prises de carburant effectives (où les litres > 0)
             prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
-            
-            # La règle : 1 prise tous les 2 shifts. Si le nombre de prises est pair, c'est le moment d'une nouvelle prise (1er shift du cycle).
-            # Si le nombre de prises est impair, le camion a déjà pris du carburant au shift précédent, donc interdit sur ce shift (2e shift du cycle).
             carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
 
             st.markdown("---")
             if carburant_autorise_ce_shift:
-                prend_carb = st.checkbox("Prise de carburant pour ce shift (Autorisé - 1er shift du cycle)", value=True)
+                prend_carb = st.checkbox("Prise de carburant pour ce shift (Autorisé - 1er shift du cycle)", value=True, key=f"carb_chk_{cnt}")
             else:
-                prend_carb = st.checkbox("Prise de carburant pour ce shift (Bloqué - Déjà pris au shift précédent)", value=False, disabled=True)
+                prend_carb = st.checkbox("Prise de carburant pour ce shift (Bloqué - Déjà pris au shift précédent)", value=False, disabled=True, key=f"carb_chk_{cnt}")
 
             c_litres = 0.0
             if prend_carb and carburant_autorise_ce_shift:
-                c_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=50.0, step=5.0)
+                c_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=50.0, step=5.0, key=f"litres_c_{cnt}")
 
             submitted_c = st.form_submit_button("Enregistrer le Bon Camion")
             if submitted_c:
@@ -241,16 +244,20 @@ with tab_saisie:
                     }
                     st.session_state.historique_bons.append(enregistrement_bon)
                     st.success(f"Bon camion n°{num_bon} enregistré pour le véhicule {immat} !")
+                    # Incrémentation du compteur pour réinitialiser le formulaire au prochain tour
+                    st.session_state.form_camion_counter += 1
+                    st.rerun()
 
     elif type_saisie == "Chargeuse":
-        with st.form("form_chargeuse"):
-            shift_chargeuse = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_ch")
-            ch_conducteur = st.text_input("Nom du conducteur de la Chargeuse", placeholder="Ex: Kouassi Jean")
+        cnt_ch = st.session_state.form_chargeuse_counter
+        with st.form(f"form_chargeuse_{cnt_ch}"):
+            shift_chargeuse = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_ch_{cnt_ch}")
+            ch_conducteur = st.text_input("Nom du conducteur de la Chargeuse", placeholder="Ex: Kouassi Jean", key=f"cond_ch_{cnt_ch}")
             
-            prend_carb_ch = st.checkbox("Prise de carburant pour ce shift (Comptabilisé 1 fois par shift)", value=True)
+            prend_carb_ch = st.checkbox("Prise de carburant pour ce shift (Comptabilisé 1 fois par shift)", value=True, key=f"carb_ch_{cnt_ch}")
             ch_litres = 0.0
             if prend_carb_ch:
-                ch_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=40.0, step=5.0)
+                ch_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=40.0, step=5.0, key=f"litres_ch_{cnt_ch}")
 
             submitted_ch = st.form_submit_button("Enregistrer la Chargeuse")
             if submitted_ch:
@@ -278,6 +285,8 @@ with tab_saisie:
                     }
                     st.session_state.historique_bons.append(enregistrement_ch)
                     st.success(f"Intervention chargeuse enregistrée pour le conducteur {conducteur} !")
+                    st.session_state.form_chargeuse_counter += 1
+                    st.rerun()
 
     else:
         with st.form("form_personnel"):
@@ -303,6 +312,7 @@ with tab_saisie:
                 }
                 st.session_state.historique_bons.append(enregistrement_p)
                 st.success("Personnel d'entretien enregistré avec succès !")
+                st.rerun()
 
 # --- ONGLET 2 : MODIFICATION EN CAS D'ERREUR ---
 with tab_modif:
