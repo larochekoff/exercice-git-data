@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Version Corrigée)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Gestion stricte carburant 2 shifts)
 """
 import streamlit as st
 import pandas as pd
@@ -190,21 +190,24 @@ with tab_saisie:
             c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB")
             c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001")
             
+            # Analyse stricte des prises de carburant précédentes pour ce camion
             camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == c_immat.strip().upper()]
-            dernier_shift_carburant_autorise = True
-            if camions_precedents:
-                dernier_bon = camions_precedents[-1]
-                if dernier_bon.get("Litres_Carburant", 0.0) > 0:
-                    dernier_shift_carburant_autorise = False
+            
+            # On cherche le nombre de prises de carburant effectives (où les litres > 0)
+            prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
+            
+            # La règle : 1 prise tous les 2 shifts. Si le nombre de prises est pair, c'est le moment d'une nouvelle prise (1er shift du cycle).
+            # Si le nombre de prises est impair, le camion a déjà pris du carburant au shift précédent, donc interdit sur ce shift (2e shift du cycle).
+            carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
 
             st.markdown("---")
-            if dernier_shift_carburant_autorise:
+            if carburant_autorise_ce_shift:
                 prend_carb = st.checkbox("Prise de carburant pour ce shift (Autorisé - 1er shift du cycle)", value=True)
             else:
-                prend_carb = st.checkbox("Prise de carburant pour ce shift (Bloqué - Carburant déjà pris au shift précédent)", value=False, disabled=True)
+                prend_carb = st.checkbox("Prise de carburant pour ce shift (Bloqué - Déjà pris au shift précédent)", value=False, disabled=True)
 
             c_litres = 0.0
-            if prend_carb and dernier_shift_carburant_autorise:
+            if prend_carb and carburant_autorise_ce_shift:
                 c_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=50.0, step=5.0)
 
             submitted_c = st.form_submit_button("Enregistrer le Bon Camion")
@@ -216,8 +219,8 @@ with tab_saisie:
                     num_bon = c_num_bon.strip()
                     tarif_c = st.session_state.tarifs["carburant"]
                     
-                    cout_carb = c_litres * tarif_c if (prend_carb and dernier_shift_carburant_autorise) else 0.0
-                    litres_effectifs = c_litres if (prend_carb and dernier_shift_carburant_autorise) else 0.0
+                    cout_carb = c_litres * tarif_c if (prend_carb and carburant_autorise_ce_shift) else 0.0
+                    litres_effectifs = c_litres if (prend_carb and carburant_autorise_ce_shift) else 0.0
 
                     nb_bons_camion = len(camions_precedents)
                     montant_loc_base = st.session_state.tarifs["loc_12_roues"] if c_type == "12 roues" else st.session_state.tarifs["loc_10_roues"]
@@ -258,10 +261,7 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    
-                    # Correction de la parenthèse fermante ici
                     conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
-                    
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
