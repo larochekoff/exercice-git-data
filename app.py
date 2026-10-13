@@ -1,8 +1,5 @@
-Voici le code mis à jour de votre fichier app.py. L'onglet de l'historique a été ajusté pour regrouper et afficher les données par shift (en conservant la même structure détaillée pour les camions, les chargeuses et les totaux) :
-
-Python
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Historique trié par Shift)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI
 """
 import streamlit as st
 import pandas as pd
@@ -305,7 +302,8 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
+                    # Correction vérifiée de la ligne ci-dessous :
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
@@ -386,7 +384,6 @@ with tab_bons:
             st.markdown(f"### 🕒 {s}")
             df_s = df_historique[df_historique["Shift"] == s]
             
-            # Sous-section Camions par shift
             st.markdown("#### 🚚 Camions")
             camions_s = df_s[df_s["Categorie"] == "Camion"]
             if not camions_s.empty:
@@ -403,7 +400,6 @@ with tab_bons:
             else:
                 st.info("Aucun bon camion enregistré pour ce shift.")
 
-            # Sous-section Chargeuses par shift
             st.markdown("#### 🏗️ Chargeuses (Par Conducteur)")
             chargeuses_s = df_s[df_s["Categorie"] == "Chargeuse"]
             if not chargeuses_s.empty:
