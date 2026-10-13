@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Rapports enrichis)
 """
 import streamlit as st
 import pandas as pd
@@ -95,8 +95,16 @@ def generer_pdf_shift(date_str, shift_str, df_shift):
         ]))
         elements.append(t)
         elements.append(Spacer(1, 15))
-        total_cout = df_shift["Cout_Total"].sum()
-        elements.append(Paragraph(f"<b>Coût Total du Shift :</b> {total_cout:,.0f} FCFA", styles['Normal']))
+        
+        tot_litres = df_shift["Litres_Carburant"].sum() if "Litres_Carburant" in df_shift.columns else 0
+        tot_carb = df_shift["Cout_Carburant"].sum() if "Cout_Carburant" in df_shift.columns else 0
+        tot_loc = df_shift["Cout_Location"].sum() if "Cout_Location" in df_shift.columns else 0
+        tot_cout = df_shift["Cout_Total"].sum()
+        
+        elements.append(Paragraph(f"<b>Volume Total Carburant :</b> {tot_litres:,.1f} Litres", styles['Normal']))
+        elements.append(Paragraph(f"<b>Montant Total Carburant :</b> {tot_carb:,.0f} FCFA", styles['Normal']))
+        elements.append(Paragraph(f"<b>Montant Total Location :</b> {tot_loc:,.0f} FCFA", styles['Normal']))
+        elements.append(Paragraph(f"<b>Cumul Total Général du Shift :</b> {tot_cout:,.0f} FCFA", styles['Normal']))
     else:
         elements.append(Paragraph("Aucune opération enregistrée pour ce shift.", styles['Normal']))
         
@@ -124,19 +132,26 @@ def generer_pdf_global(df_all):
 
         tot_carb_cam = camions_g["Cout_Carburant"].sum() if not camions_g.empty else 0
         tot_loc_cam = camions_g["Cout_Location"].sum() if not camions_g.empty else 0
+        tot_litres_cam = camions_g["Litres_Carburant"].sum() if not camions_g.empty else 0
+
         tot_carb_ch = chargeuses_g["Cout_Carburant"].sum() if not chargeuses_g.empty else 0
         tot_loc_ch = chargeuses_g["Cout_Location"].sum() if not chargeuses_g.empty else 0
+        tot_litres_ch = chargeuses_g["Litres_Carburant"].sum() if not chargeuses_g.empty else 0
+
         tot_mo = personnel_g["Cout_Total"].sum() if not personnel_g.empty else 0
-        tot_global = tot_carb_cam + tot_loc_cam + tot_carb_ch + tot_loc_ch + tot_mo
+        
+        total_litres_global = tot_litres_cam + tot_litres_ch
+        total_carburant_global = tot_carb_cam + tot_carb_ch
+        total_location_global = tot_loc_cam + tot_loc_ch
+        tot_global = total_carburant_global + total_location_global + tot_mo
 
         recap_data = [
-            ["Catégorie / Poste", "Montant Total (FCFA)"],
-            ["Carburant Camions", f"{tot_carb_cam:,.0f}"],
-            ["Location Camions", f"{tot_loc_cam:,.0f}"],
-            ["Carburant Chargeuses", f"{tot_carb_ch:,.0f}"],
-            ["Location Chargeuses", f"{tot_loc_ch:,.0f}"],
-            ["Main d'Œuvre Entretien", f"{tot_mo:,.0f}"],
-            ["TOTAL GÉNÉRAL", f"{tot_global:,.0f}"]
+            ["Indicateur / Poste", "Montant / Volume Total"],
+            ["Volume Total Carburant (Litres)", f"{total_litres_global:,.1f} L"],
+            ["Montant Total Carburant (Camions + Chargeuses)", f"{total_carburant_global:,.0f} FCFA"],
+            ["Montant Total Location (Camions + Chargeuses)", f"{total_location_global:,.0f} FCFA"],
+            ["Main d'Œuvre Entretien", f"{tot_mo:,.0f} FCFA"],
+            ["CUMUL TOTAL GÉNÉRAL", f"{tot_global:,.0f} FCFA"]
         ]
         
         t = Table(recap_data, colWidths=[250, 200])
@@ -214,7 +229,6 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        # Correction ligne 217 (parenthèse refermée correctement au bon endroit) :
         camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
         prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
@@ -311,7 +325,7 @@ with tab_saisie:
 
     else:
         with st.form("form_personnel"):
-            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_p")
+            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_p")
             p_agents = st.number_input("Nombre d'agents présents", min_value=0, value=5, step=1)
             p_absences = st.number_input("Nombre d'absences", min_value=0, value=0, step=1)
             
@@ -369,6 +383,7 @@ with tab_bons:
             camions_resume = camions_bons.groupby("Identifiant").agg(
                 Type_Camion=("Type_Camion", "first"),
                 Nombre_Tours=("Numero_Bon", "count"),
+                Cycles_2_Shifts=("Numero_Bon", lambda x: f"{len(x) // 2} cycle(s) ({len(x) % 2} en cours)"),
                 Total_Litres_Gasoil=("Litres_Carburant", "sum"),
                 Total_Cout_Carburant=("Cout_Carburant", "sum"),
                 Total_Cout_Location=("Cout_Location", "sum"),
@@ -411,8 +426,20 @@ with tab_rapport_shift:
         st.markdown(f"##### Activités du {sel_date} - {sel_shift}")
         if not df_shift_filtered.empty:
             st.dataframe(df_shift_filtered, use_container_width=True)
-            total_shift_cout = df_shift_filtered["Cout_Total"].sum()
-            st.metric("Coût Total pour ce Shift", f"{total_shift_cout:,.0f} FCFA")
+            
+            # Calculs consolidés du shift
+            t_litres = df_shift_filtered["Litres_Carburant"].sum() if "Litres_Carburant" in df_shift_filtered.columns else 0
+            t_carb = df_shift_filtered["Cout_Carburant"].sum() if "Cout_Carburant" in df_shift_filtered.columns else 0
+            t_loc = df_shift_filtered["Cout_Location"].sum() if "Cout_Location" in df_shift_filtered.columns else 0
+            t_cout = df_shift_filtered["Cout_Total"].sum()
+            t_tours = len(df_shift_filtered[df_shift_filtered["Categorie"] == "Camion"])
+
+            col_s1, col_s2, col_s3, col_s4, col_s5 = st.columns(5)
+            col_s1.metric("Total Tours Camions", f"{t_tours}")
+            col_s2.metric("Total Carburant", f"{t_litres:,.1f} L")
+            col_s3.metric("Montant Carburant", f"{t_carb:,.0f} FCFA")
+            col_s4.metric("Montant Location", f"{t_loc:,.0f} FCFA")
+            col_s5.metric("Cumul Général Shift", f"{t_cout:,.0f} FCFA")
             
             pdf_buffer = generer_pdf_shift(str(sel_date), sel_shift, df_shift_filtered)
             st.download_button(
@@ -439,43 +466,50 @@ with tab_rapport_global:
 
         nb_camions_total = camions_g["Identifiant"].nunique() if not camions_g.empty else 0
         total_tours_glob = len(camions_g)
-        total_carb_cam = camions_g["Cout_Carburant"].sum() if not camions_g.empty else 0
-        total_loc_cam = camions_g["Cout_Location"].sum() if not camions_g.empty else 0
+        total_cycles_glob = total_tours_glob / 2.0
+        
+        tot_litres_cam = camions_g["Litres_Carburant"].sum() if not camions_g.empty else 0
+        tot_carb_cam = camions_g["Cout_Carburant"].sum() if not camions_g.empty else 0
+        tot_loc_cam = camions_g["Cout_Location"].sum() if not camions_g.empty else 0
 
-        total_carb_ch = chargeuses_g["Cout_Carburant"].sum() if not chargeuses_g.empty else 0
-        total_loc_ch = chargeuses_g["Cout_Location"].sum() if not chargeuses_g.empty else 0
+        tot_litres_ch = chargeuses_g["Litres_Carburant"].sum() if not chargeuses_g.empty else 0
+        tot_carb_ch = chargeuses_g["Cout_Carburant"].sum() if not chargeuses_g.empty else 0
+        tot_loc_ch = chargeuses_g["Cout_Location"].sum() if not chargeuses_g.empty else 0
 
-        total_mo_glob = personnel_g["Cout_Total"].sum() if not personnel_g.empty else 0
+        tot_mo_glob = personnel_g["Cout_Total"].sum() if not personnel_g.empty else 0
 
-        col_g1, col_g2, col_g3 = st.columns(3)
+        total_litres_global = tot_litres_cam + tot_litres_ch
+        total_carb_global = tot_carb_cam + tot_carb_ch
+        total_loc_global = tot_loc_cam + tot_loc_ch
+        cout_total_global = total_carb_global + total_loc_global + tot_mo_glob
+
+        col_g1, col_g2, col_g3, col_g4 = st.columns(4)
         with col_g1:
-            st.metric("Nombre de Camions Engagés", f"{nb_camions_total} camions")
-            st.metric("Total Tours Camions", f"{total_tours_glob} tours (bons)")
-            st.metric("Coût Carburant Camions", f"{total_carb_cam:,.0f} FCFA")
-            st.metric("Location Camions", f"{total_loc_cam:,.0f} FCFA")
+            st.metric("Total Tours Camions", f"{total_tours_glob} tours")
+            st.metric("Équivalent Cycles (2 shifts)", f"{total_cycles_glob:.1f} cycles")
         with col_g2:
-            st.metric("Coût Carburant Chargeuses", f"{total_carb_ch:,.0f} FCFA")
-            st.metric("Location Chargeuses", f"{total_loc_ch:,.0f} FCFA")
+            st.metric("Volume Total Carburant", f"{total_litres_global:,.1f} Litres")
+            st.metric("Montant Total Carburant", f"{total_carb_global:,.0f} FCFA")
         with col_g3:
-            st.metric("Total Main d'Œuvre Entretien", f"{total_mo_glob:,.0f} FCFA")
+            st.metric("Montant Total Location", f"{total_location_global:,.0f} FCFA")
+            st.metric("Total Main d'Œuvre", f"{tot_mo_glob:,.0f} FCFA")
+        with col_g4:
+            st.metric("CUMUL TOTAL GÉNÉRAL", f"{cout_total_global:,.0f} FCFA")
 
         st.markdown("---")
-        st.markdown("### 🏆 Top 5 des Camions les Plus Actifs")
+        st.markdown("### 🏆 Top des Camions les Plus Actifs (Tours et Cycles)")
         if not camions_g.empty:
-            top_5_camions = camions_g.groupby("Identifiant").agg(
+            top_camions = camions_g.groupby("Identifiant").agg(
                 Type_Camion=("Type_Camion", "first"),
                 Nombre_Tours=("Numero_Bon", "count"),
                 Total_Litres=("Litres_Carburant", "sum"),
                 Montant_Total_Du=("Cout_Total", "sum")
-            ).reset_index().sort_values(by="Nombre_Tours", ascending=False).head(5)
-            st.dataframe(top_5_camions, use_container_width=True)
+            ).reset_index().sort_values(by="Nombre_Tours", ascending=False)
+            st.dataframe(top_camions, use_container_width=True)
         else:
             st.info("Aucun camion enregistré.")
 
-        cout_total_global = total_carb_cam + total_loc_cam + total_carb_ch + total_loc_ch + total_mo_glob
         st.markdown("---")
-        st.markdown(f"### 💰 Coût Total Global de l'Opération CFDAI : **{cout_total_global:,.0f} FCFA**")
-        
         pdf_global_buffer = generer_pdf_global(df_g)
         st.download_button(
             label="📥 Télécharger le Rapport Global en PDF",
