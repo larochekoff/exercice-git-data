@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Alternance stricte des shifts par camion)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI
 """
 import streamlit as st
 import pandas as pd
@@ -214,7 +214,6 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        # Correction de la syntaxe de la ligne 217 ci-dessous :
         camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
         carburant_autorise_ce_shift = True
@@ -291,7 +290,8 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
+                    # Correction de la syntaxe de la ligne 294 ci-dessous :
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie"] == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
@@ -314,7 +314,7 @@ with tab_saisie:
 
     else:
         with st.form("form_personnel"):
-            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_p")
+            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_p")
             p_agents = st.number_input("Nombre d'agents présents", min_value=0, value=5, step=1)
             p_absences = st.number_input("Nombre d'absences", min_value=0, value=0, step=1)
             
