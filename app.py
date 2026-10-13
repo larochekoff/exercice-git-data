@@ -1,5 +1,8 @@
+Voici le code mis à jour de votre fichier app.py. L'onglet de l'historique a été ajusté pour regrouper et afficher les données par shift (en conservant la même structure détaillée pour les camions, les chargeuses et les totaux) :
+
+Python
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Rapports enrichis & corrigés)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Historique trié par Shift)
 """
 import streamlit as st
 import pandas as pd
@@ -302,7 +305,7 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
@@ -370,42 +373,52 @@ with tab_modif:
     else:
         st.info("Aucun enregistrement disponible.")
 
-# --- ONGLET 3 : HISTORIQUE DES ENGINS & BONS ---
+# --- ONGLET 3 : HISTORIQUE DES ENGINS & BONS (PAR SHIFT) ---
 with tab_bons:
-    st.subheader("📋 Historique Global des Bons et Suivi des Engins")
+    st.subheader("📋 Historique Global des Engins & Bons (Classé par Shift)")
 
     if st.session_state.historique_bons:
         df_historique = pd.DataFrame(st.session_state.historique_bons)
         
-        st.markdown("#### 🚚 Historique Camions")
-        camions_bons = df_historique[df_historique["Categorie"] == "Camion"]
-        if not camions_bons.empty:
-            camions_resume = camions_bons.groupby("Identifiant").agg(
-                Type_Camion=("Type_Camion", "first"),
-                Nombre_Tours=("Numero_Bon", "count"),
-                Cycles_2_Shifts=("Numero_Bon", lambda x: f"{len(x) // 2} cycle(s) ({len(x) % 2} en cours)"),
-                Total_Litres_Gasoil=("Litres_Carburant", "sum"),
-                Total_Cout_Carburant=("Cout_Carburant", "sum"),
-                Total_Cout_Location=("Cout_Location", "sum"),
-                Montant_Total_Du=("Cout_Total", "sum")
-            ).reset_index()
-            st.dataframe(camions_resume, use_container_width=True)
-        else:
-            st.info("Aucun bon camion enregistré.")
+        shifts_disponibles = df_historique["Shift"].unique() if "Shift" in df_historique.columns else []
+        
+        for s in shifts_disponibles:
+            st.markdown(f"### 🕒 {s}")
+            df_s = df_historique[df_historique["Shift"] == s]
+            
+            # Sous-section Camions par shift
+            st.markdown("#### 🚚 Camions")
+            camions_s = df_s[df_s["Categorie"] == "Camion"]
+            if not camions_s.empty:
+                camions_resume_s = camions_s.groupby("Identifiant").agg(
+                    Type_Camion=("Type_Camion", "first"),
+                    Nombre_Tours=("Numero_Bon", "count"),
+                    Cycles_2_Shifts=("Numero_Bon", lambda x: f"{len(x) // 2} cycle(s) ({len(x) % 2} en cours)"),
+                    Total_Litres_Gasoil=("Litres_Carburant", "sum"),
+                    Total_Cout_Carburant=("Cout_Carburant", "sum"),
+                    Total_Cout_Location=("Cout_Location", "sum"),
+                    Montant_Total_Du=("Cout_Total", "sum")
+                ).reset_index()
+                st.dataframe(camions_resume_s, use_container_width=True)
+            else:
+                st.info("Aucun bon camion enregistré pour ce shift.")
 
-        st.markdown("#### 🏗️ Historique Chargeuses (Par Conducteur)")
-        chargeuses_bons = df_historique[df_historique["Categorie"] == "Chargeuse"]
-        if not chargeuses_bons.empty:
-            chargeuses_resume = chargeuses_bons.groupby("Conducteur").agg(
-                Nombre_Interventions=("Shift", "count"),
-                Total_Carburant_Litres=("Litres_Carburant", "sum"),
-                Montant_Total_Carburant=("Cout_Carburant", "sum"),
-                Montant_Total_Location=("Cout_Location", "sum"),
-                Montant_Total_Du=("Cout_Total", "sum")
-            ).reset_index()
-            st.dataframe(chargeuses_resume, use_container_width=True)
-        else:
-            st.info("Aucune chargeuse enregistrée.")
+            # Sous-section Chargeuses par shift
+            st.markdown("#### 🏗️ Chargeuses (Par Conducteur)")
+            chargeuses_s = df_s[df_s["Categorie"] == "Chargeuse"]
+            if not chargeuses_s.empty:
+                chargeuses_resume_s = chargeuses_s.groupby("Conducteur").agg(
+                    Nombre_Interventions=("Shift", "count"),
+                    Total_Carburant_Litres=("Litres_Carburant", "sum"),
+                    Montant_Total_Carburant=("Cout_Carburant", "sum"),
+                    Montant_Total_Location=("Cout_Location", "sum"),
+                    Montant_Total_Du=("Cout_Total", "sum")
+                ).reset_index()
+                st.dataframe(chargeuses_resume_s, use_container_width=True)
+            else:
+                st.info("Aucune chargeuse enregistrée pour ce shift.")
+            
+            st.markdown("---")
     else:
         st.info("Aucun bon de sortie enregistré.")
 
@@ -427,7 +440,6 @@ with tab_rapport_shift:
         if not df_shift_filtered.empty:
             st.dataframe(df_shift_filtered, use_container_width=True)
             
-            # Calculs consolidés du shift
             t_litres = df_shift_filtered["Litres_Carburant"].sum() if "Litres_Carburant" in df_shift_filtered.columns else 0
             t_carb = df_shift_filtered["Cout_Carburant"].sum() if "Cout_Carburant" in df_shift_filtered.columns else 0
             t_loc = df_shift_filtered["Cout_Location"].sum() if "Cout_Location" in df_shift_filtered.columns else 0
