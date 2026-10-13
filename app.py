@@ -184,7 +184,7 @@ st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
     "Main d'œuvre Shift 08h-19h", min_value=0, value=st.session_state.tarifs["mo_jour"], step=500
 )
 st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
-    "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
+    "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500)
 
 # ==========================================
 # 5. INTERFACE PRINCIPALE
