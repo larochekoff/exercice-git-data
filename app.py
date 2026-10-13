@@ -1,3 +1,4 @@
+        
 """
 app.py: Application de Suivi Opérationnel et Financier - CFDAI
 """
@@ -81,10 +82,10 @@ def generer_pdf_shift(date_str, shift_str, df_shift):
     elements.append(Spacer(1, 15))
     
     if not df_shift.empty:
-        cols_to_show = [c for c in ["Categorie", "Identifiant", "Conducteur", "Numero_Bon", "Litres_Carburant", "Cout_Total"] if c in df_shift.columns]
+        cols_to_show = [c for c in ["Categorie", "Identifiant", "Conducteur", "Numero_Bon", "Litres_Carburant", "Agents_Presents", "Cout_Total"] if c in df_shift.columns]
         table_data = [cols_to_show] + df_shift[cols_to_show].astype(str).values.tolist()
         
-        t = Table(table_data, colWidths=[100, 100, 100, 80, 80, 80])
+        t = Table(table_data, colWidths=[90, 90, 90, 70, 70, 70, 70])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1B365D')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -100,11 +101,14 @@ def generer_pdf_shift(date_str, shift_str, df_shift):
         tot_litres = df_shift["Litres_Carburant"].sum() if "Litres_Carburant" in df_shift.columns else 0
         tot_carb = df_shift["Cout_Carburant"].sum() if "Cout_Carburant" in df_shift.columns else 0
         tot_loc = df_shift["Cout_Location"].sum() if "Cout_Location" in df_shift.columns else 0
+        personnel_df = df_shift[df_shift["Categorie"] == "Personnel"]
+        tot_mo = personnel_df["Cout_Total"].sum() if not personnel_df.empty else 0
         tot_cout = df_shift["Cout_Total"].sum()
         
         elements.append(Paragraph(f"<b>Volume Total Carburant :</b> {tot_litres:,.1f} Litres", styles['Normal']))
         elements.append(Paragraph(f"<b>Montant Total Carburant :</b> {tot_carb:,.0f} FCFA", styles['Normal']))
         elements.append(Paragraph(f"<b>Montant Total Location :</b> {tot_loc:,.0f} FCFA", styles['Normal']))
+        elements.append(Paragraph(f"<b>Main d'Œuvre Entretien :</b> {tot_mo:,.0f} FCFA", styles['Normal']))
         elements.append(Paragraph(f"<b>Cumul Total Général du Shift :</b> {tot_cout:,.0f} FCFA", styles['Normal']))
     else:
         elements.append(Paragraph("Aucune opération enregistrée pour ce shift.", styles['Normal']))
@@ -188,8 +192,8 @@ shift_actuel = st.sidebar.selectbox("Shift actif", [SHIFT_JOUR, SHIFT_NUIT])
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("⛽ Volumes de Carburant (Litres)")
-vol_carb_camions_defaut = st.sidebar.number_input("Carburant par défaut / Camion (L)", min_value=0.0, value=50.0, step=5.0)
-vol_carb_chargeuses_defaut = st.sidebar.number_input("Carburant par défaut / Chargeuse (L)", min_value=0.0, value=40.0, step=5.0)
+vol_carb_camions_defaut = st.sidebar.number_input("Carburant par défaut / Camion (L)", min_value=0.0, value=0.0, step=5.0)
+vol_carb_chargeuses_defaut = st.sidebar.number_input("Carburant par défaut / Chargeuse (L)", min_value=0.0, value=0.0, step=5.0)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ Tarifs & Coûts")
@@ -418,6 +422,13 @@ with tab_bons:
                 st.dataframe(chargeuses_resume_s, use_container_width=True)
             else:
                 st.info("Aucune chargeuse enregistrée pour ce shift.")
+
+            st.markdown("#### 👷 Personnel d'Entretien")
+            personnel_s = df_s[df_s["Categorie"] == "Personnel"]
+            if not personnel_s.empty:
+                st.dataframe(personnel_s[["Date", "Agents_Presents", "Absences", "Cout_Total"]], use_container_width=True)
+            else:
+                st.info("Aucun enregistrement de personnel pour ce shift.")
             
             st.markdown("---")
     else:
@@ -444,6 +455,8 @@ with tab_rapport_shift:
             t_litres = df_shift_filtered["Litres_Carburant"].sum() if "Litres_Carburant" in df_shift_filtered.columns else 0
             t_carb = df_shift_filtered["Cout_Carburant"].sum() if "Cout_Carburant" in df_shift_filtered.columns else 0
             t_loc = df_shift_filtered["Cout_Location"].sum() if "Cout_Location" in df_shift_filtered.columns else 0
+            personnel_filtered = df_shift_filtered[df_shift_filtered["Categorie"] == "Personnel"]
+            t_mo = personnel_filtered["Cout_Total"].sum() if not personnel_filtered.empty else 0
             t_cout = df_shift_filtered["Cout_Total"].sum()
             t_tours = len(df_shift_filtered[df_shift_filtered["Categorie"] == "Camion"])
 
@@ -451,7 +464,7 @@ with tab_rapport_shift:
             col_s1.metric("Total Tours Camions", f"{t_tours}")
             col_s2.metric("Total Carburant", f"{t_litres:,.1f} L")
             col_s3.metric("Montant Carburant", f"{t_carb:,.0f} FCFA")
-            col_s4.metric("Montant Location", f"{t_loc:,.0f} FCFA")
+            col_s4.metric("Main d'Œuvre Entretien", f"{t_mo:,.0f} FCFA")
             col_s5.metric("Cumul Général Shift", f"{t_cout:,.0f} FCFA")
             
             pdf_buffer = generer_pdf_shift(str(sel_date), sel_shift, df_shift_filtered)
@@ -505,7 +518,7 @@ with tab_rapport_global:
             st.metric("Carburant Camions", f"{tot_carb_cam:,.0f} FCFA")
         with col_g3:
             st.metric("Carburant Bennes", f"{tot_carb_ch:,.0f} FCFA")
-            st.metric("Montant Total Location", f"{total_location_global:,.0f} FCFA")
+            st.metric("Total Main d'Œuvre", f"{tot_mo_glob:,.0f} FCFA")
         with col_g4:
             st.metric("CUMUL TOTAL GÉNÉRAL", f"{cout_total_global:,.0f} FCFA")
 
@@ -532,6 +545,3 @@ with tab_rapport_global:
         )
     else:
         st.info("Aucune donnée globale disponible.")
-        49
-
-        
