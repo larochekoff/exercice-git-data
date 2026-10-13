@@ -214,13 +214,13 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie"] == "Camion" and b.get("Identifiant") == immat_propre]
         
-        carburant_autorise_ce_shift = True
-        if camions_precedents:
-            dernier_bon = camions_precedents[-1]
-            if dernier_bon.get("Litres_Carburant", 0.0) > 0:
-                carburant_autorise_ce_shift = False
+        # RÈGLE STRICTE : Alternance basée sur le nombre total de prises de carburant effectuées par ce camion.
+        # Pair (0, 2, 4...) -> 1er shift du cycle : Carburant AUTORISÉ.
+        # Impair (1, 3, 5...) -> 2e shift du cycle : Carburant VERROUILLÉ.
+        prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
+        carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
 
         with st.form(f"form_camion_{cnt}"):
             c_num_bon = st.text_input("Numéro du Bon de Sortie", placeholder="Ex: BON-001", key=f"bon_c_{cnt}")
@@ -290,7 +290,6 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    # Correction corrigée ici avec les bonnes parenthèses :
                     conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
@@ -314,7 +313,7 @@ with tab_saisie:
 
     else:
         with st.form("form_personnel"):
-            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_p")
+            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_p")
             p_agents = st.number_input("Nombre d'agents présents", min_value=0, value=5, step=1)
             p_absences = st.number_input("Nombre d'absences", min_value=0, value=0, step=1)
             
@@ -475,16 +474,5 @@ with tab_rapport_global:
         else:
             st.info("Aucun camion enregistré.")
 
-        cout_total_global = total_carb_cam + total_loc_cam + total_carb_ch + total_loc_ch + total_mo_glob
-        st.markdown("---")
-        st.markdown(f"### 💰 Coût Total Global de l'Opération CFDAI : **{cout_total_global:,.0f} FCFA**")
-        
-        pdf_global_buffer = generer_pdf_global(df_g)
-        st.download_button(
-            label="📥 Télécharger le Rapport Global en PDF",
-            data=pdf_global_buffer,
-            file_name=f"Rapport_Global_CFDAI_{datetime.now().strftime('%Y-%m-%d')}.pdf",
-            mime="application/pdf"
-        )
     else:
         st.info("Aucune donnée globale disponible.")
