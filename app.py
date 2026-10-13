@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec Sauvegarde Persistante Locale)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Alternance stricte des shifts par camion)
 """
 import streamlit as st
 import pandas as pd
@@ -40,7 +40,6 @@ if "tarifs" not in st.session_state:
         "mo_nuit": 6000
     }
 
-# Chargement automatique depuis le fichier local s'il existe pour éviter les pertes de données
 if "historique_bons" not in st.session_state:
     if os.path.exists(FICHIER_SAUVEGARDE):
         try:
@@ -52,7 +51,6 @@ if "historique_bons" not in st.session_state:
         st.session_state.historique_bons = []
 
 def sauvegarder_donnees():
-    """Sauvegarde l'historique dans un fichier local JSON"""
     try:
         with open(FICHIER_SAUVEGARDE, "w", encoding="utf-8") as f:
             json.dump(st.session_state.historique_bons, f, ensure_ascii=False, indent=4)
@@ -184,7 +182,8 @@ st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
     "Main d'œuvre Shift 08h-19h", min_value=0, value=st.session_state.tarifs["mo_jour"], step=500
 )
 st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
-    "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500)
+    "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
+)
 
 # ==========================================
 # 5. INTERFACE PRINCIPALE
@@ -215,8 +214,11 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant"] == immat_propre]
         
+        # RÈGLE STRICTE : Si le dernier enregistrement du camion comportait du carburant (> 0L),
+        # le shift suivant est AUTOMATIQUEMENT verrouillé. S'il n'y avait pas de carburant (0L),
+        # le carburant est autorisé pour ce nouveau shift.
         carburant_autorise_ce_shift = True
         if camions_precedents:
             dernier_bon = camions_precedents[-1]
