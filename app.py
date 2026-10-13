@@ -214,11 +214,9 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie"] == "Camion" and b.get("Identifiant") == immat_propre]
+        # Correction ligne 217 (parenthèse refermée correctement au bon endroit) :
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
-        # RÈGLE STRICTE : Alternance basée sur le nombre total de prises de carburant effectuées par ce camion.
-        # Pair (0, 2, 4...) -> 1er shift du cycle : Carburant AUTORISÉ.
-        # Impair (1, 3, 5...) -> 2e shift du cycle : Carburant VERROUILLÉ.
         prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
         carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
 
@@ -474,5 +472,16 @@ with tab_rapport_global:
         else:
             st.info("Aucun camion enregistré.")
 
+        cout_total_global = total_carb_cam + total_loc_cam + total_carb_ch + total_loc_ch + total_mo_glob
+        st.markdown("---")
+        st.markdown(f"### 💰 Coût Total Global de l'Opération CFDAI : **{cout_total_global:,.0f} FCFA**")
+        
+        pdf_global_buffer = generer_pdf_global(df_g)
+        st.download_button(
+            label="📥 Télécharger le Rapport Global en PDF",
+            data=pdf_global_buffer,
+            file_name=f"Rapport_Global_CFDAI_{datetime.now().strftime('%Y-%m-%d')}.pdf",
+            mime="application/pdf"
+        )
     else:
         st.info("Aucune donnée globale disponible.")
