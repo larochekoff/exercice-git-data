@@ -214,11 +214,9 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant")] == immat_propre]
+        # Correction de la syntaxe de la ligne 217 ci-dessous :
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
-        # RÈGLE STRICTE : Si le dernier enregistrement du camion comportait du carburant (> 0L),
-        # le shift suivant est AUTOMATIQUEMENT verrouillé. S'il n'y avait pas de carburant (0L),
-        # le carburant est autorisé pour ce nouveau shift.
         carburant_autorise_ce_shift = True
         if camions_precedents:
             dernier_bon = camions_precedents[-1]
@@ -293,7 +291,7 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
