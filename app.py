@@ -1,9 +1,11 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec Sauvegarde Persistante Locale)
 """
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import json
+import os
 import io
 
 # Imports ReportLab pour la génération des PDF
@@ -17,6 +19,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # ==========================================
 SHIFT_JOUR = "Shift 08h - 19h"
 SHIFT_NUIT = "Shift 19h - 08h"
+FICHIER_SAUVEGARDE = "historique_cfdai.json"
 
 st.set_page_config(
     page_title="CFDAI - Suivi Opérationnel Flotte & Chantiers",
@@ -25,7 +28,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. INITIALISATION ROBUSTE DE L'ÉTAT DE SESSION
+# 2. INITIALISATION ET PERSISTANCE ROBUSTE
 # ==========================================
 if "tarifs" not in st.session_state:
     st.session_state.tarifs = {
@@ -37,8 +40,24 @@ if "tarifs" not in st.session_state:
         "mo_nuit": 6000
     }
 
+# Chargement automatique depuis le fichier local s'il existe pour éviter les pertes de données
 if "historique_bons" not in st.session_state:
-    st.session_state.historique_bons = []
+    if os.path.exists(FICHIER_SAUVEGARDE):
+        try:
+            with open(FICHIER_SAUVEGARDE, "r", encoding="utf-8") as f:
+                st.session_state.historique_bons = json.load(f)
+        except Exception:
+            st.session_state.historique_bons = []
+    else:
+        st.session_state.historique_bons = []
+
+def sauvegarder_donnees():
+    """Sauvegarde l'historique dans un fichier local JSON"""
+    try:
+        with open(FICHIER_SAUVEGARDE, "w", encoding="utf-8") as f:
+            json.dump(st.session_state.historique_bons, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde : {e}")
 
 if "form_camion_counter" not in st.session_state:
     st.session_state.form_camion_counter = 0
@@ -166,7 +185,6 @@ st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
 )
 st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
     "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
-)
 
 # ==========================================
 # 5. INTERFACE PRINCIPALE
@@ -196,15 +214,12 @@ with tab_saisie:
         c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"], key=f"type_c_{cnt}")
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
-        # LOGIQUE D'ALTERNANCE STRICTE : 
-        # On vérifie le DERNIER bon enregistré pour ce matricule précis.
         immat_propre = c_immat.strip().upper() if c_immat else ""
         camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
         carburant_autorise_ce_shift = True
         if camions_precedents:
             dernier_bon = camions_precedents[-1]
-            # Si le dernier bon enregistré a pris du carburant (> 0L), le shift actuel EST VERROUILLÉ
             if dernier_bon.get("Litres_Carburant", 0.0) > 0:
                 carburant_autorise_ce_shift = False
 
@@ -251,6 +266,7 @@ with tab_saisie:
                         "Cout_Total": cout_carb + cout_loc
                     }
                     st.session_state.historique_bons.append(enregistrement_bon)
+                    sauvegarder_donnees()
                     st.success(f"Bon camion n°{num_bon} enregistré pour le véhicule {immat} !")
                     st.session_state.form_camion_counter += 1
                     st.rerun()
@@ -291,6 +307,7 @@ with tab_saisie:
                         "Cout_Total": cout_carb_ch + montant_loc_ch
                     }
                     st.session_state.historique_bons.append(enregistrement_ch)
+                    sauvegarder_donnees()
                     st.success(f"Intervention chargeuse enregistrée pour le conducteur {conducteur} !")
                     st.session_state.form_chargeuse_counter += 1
                     st.rerun()
@@ -318,6 +335,7 @@ with tab_saisie:
                     "Cout_Total": total_mo
                 }
                 st.session_state.historique_bons.append(enregistrement_p)
+                sauvegarder_donnees()
                 st.success("Personnel d'entretien enregistré avec succès !")
                 st.rerun()
 
@@ -335,6 +353,7 @@ with tab_modif:
             st.write(selected_record)
             if st.button("🗑️ Supprimer cette entrée"):
                 st.session_state.historique_bons = [b for b in st.session_state.historique_bons if b["ID_Unique"] != bon_a_modifier]
+                sauvegarder_donnees()
                 st.success("Entrée supprimée avec succès !")
                 st.rerun()
     else:
