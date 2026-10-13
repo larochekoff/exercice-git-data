@@ -150,7 +150,7 @@ def generer_pdf_global(df_all):
             ["Indicateur / Poste", "Montant / Volume Total"],
             ["Volume Total Carburant (Litres)", f"{total_litres_global:,.1f} L"],
             ["Montant Carburant Camions", f"{tot_carb_cam:,.0f} FCFA"],
-            ["Montant Carburant Bennes (Chargeuses)", f"{tot_carb_ch:,.0f} FCFA"],
+            ["Montant Carburant Bennes", f"{tot_carb_ch:,.0f} FCFA"],
             ["Montant Total Location (Camions + Chargeuses)", f"{total_location_global:,.0f} FCFA"],
             ["Main d'Œuvre Entretien", f"{tot_mo:,.0f} FCFA"],
             ["CUMUL TOTAL GÉNÉRAL", f"{tot_global:,.0f} FCFA"]
@@ -176,18 +176,29 @@ def generer_pdf_global(df_all):
     return buffer
 
 # ==========================================
-# 4. PANNEAU LATÉRAL : STRUCTURE CFDAI & TARIFS
+# 4. PANNEAU LATÉRAL : PARAMÈTRES, DATE, SHIFTS & TARIFS
 # ==========================================
 st.sidebar.title("🏗️ Structure CFDAI")
 st.sidebar.markdown("**Système de Suivi Opérationnel**")
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚙️ Paramètres & Tarifs")
+
+st.sidebar.subheader("📅 Contexte Global")
+date_op = st.sidebar.date_input("Date du jour", value=datetime.today())
+shift_actuel = st.sidebar.selectbox("Shift actif", [SHIFT_JOUR, SHIFT_NUIT])
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("⛽ Volumes de Carburant (Litres)")
+vol_carb_camions_defaut = st.sidebar.number_input("Carburant par défaut / Camion (L)", min_value=0.0, value=50.0, step=5.0)
+vol_carb_chargeuses_defaut = st.sidebar.number_input("Carburant par défaut / Chargeuse (L)", min_value=0.0, value=40.0, step=5.0)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ Tarifs & Coûts")
 
 st.session_state.tarifs["carburant_camions"] = st.sidebar.number_input(
-    "Carburant Camions (FCFA / litre)", min_value=0, value=st.session_state.tarifs["carburant_camions"], step=25
+    "Tarif Carburant Camions (FCFA/L)", min_value=0, value=st.session_state.tarifs["carburant_camions"], step=25
 )
 st.session_state.tarifs["carburant_bennes"] = st.sidebar.number_input(
-    "Carburant Bennes (FCFA / litre)", min_value=0, value=st.session_state.tarifs["carburant_bennes"], step=25
+    "Tarif Carburant Bennes (FCFA/L)", min_value=0, value=st.session_state.tarifs["carburant_bennes"], step=25
 )
 st.session_state.tarifs["loc_12_roues"] = st.sidebar.number_input(
     "Location 12 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_12_roues"], step=5000
@@ -209,7 +220,7 @@ st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
 # 5. INTERFACE PRINCIPALE
 # ==========================================
 st.title("🚜 CFDAI - Tableau de Bord Opérationnel")
-st.markdown("Gestion consolidée, numérotation des bons, modifications, historique et export PDF imprimable.")
+st.markdown(f"**Contexte Actuel :** {date_op.strftime('%d/%m/%Y')} | **{shift_actuel}** (Défini dans la barre latérale)")
 
 tab_saisie, tab_modif, tab_bons, tab_rapport_shift, tab_rapport_global = st.tabs([
     "📝 Saisie Opérationnelle", 
@@ -221,15 +232,13 @@ tab_saisie, tab_modif, tab_bons, tab_rapport_shift, tab_rapport_global = st.tabs
 
 # --- ONGLET 1 : SAISIE OPÉRATIONNELLE ---
 with tab_saisie:
-    st.subheader("Enregistrement des Opérations")
+    st.subheader(f"Enregistrement des Opérations ({shift_actuel})")
     
-    date_op = st.date_input("Date de l'opération", value=datetime.today())
     type_saisie = st.radio("Type d'élément à enregistrer", ["Camion", "Chargeuse", "Personnel d'Entretien"], horizontal=True)
 
     if type_saisie == "Camion":
         cnt = st.session_state.form_camion_counter
         
-        shift_camion = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_c_{cnt}")
         c_type = st.selectbox("Type de Camion", ["12 roues", "10 roues"], key=f"type_c_{cnt}")
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
@@ -244,13 +253,9 @@ with tab_saisie:
             
             st.markdown("---")
             if carburant_autorise_ce_shift:
-                prend_carb = st.checkbox("Prise de carburant pour ce shift (Autorisé - 1er shift du cycle)", value=True, key=f"carb_chk_{cnt}")
+                prend_carb = st.checkbox(f"Prise de carburant ({vol_carb_camions_defaut} L - Autorisé 1er shift du cycle)", value=True, key=f"carb_chk_{cnt}")
             else:
-                prend_carb = st.checkbox("Prise de carburant pour ce shift (Verrouillé - Déjà pris au shift précédent)", value=False, disabled=True, key=f"carb_chk_{cnt}")
-
-            c_litres = 0.0
-            if prend_carb and carburant_autorise_ce_shift:
-                c_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=50.0, step=5.0, key=f"litres_c_{cnt}")
+                prend_carb = st.checkbox("Prise de carburant (Verrouillé - Déjà pris au shift précédent)", value=False, disabled=True, key=f"carb_chk_{cnt}")
 
             submitted_c = st.form_submit_button("Enregistrer le Bon Camion")
             if submitted_c:
@@ -261,8 +266,8 @@ with tab_saisie:
                     num_bon = c_num_bon.strip()
                     tarif_carb_camions = st.session_state.tarifs["carburant_camions"]
                     
-                    cout_carb = c_litres * tarif_carb_camions if (prend_carb and carburant_autorise_ce_shift) else 0.0
-                    litres_effectifs = c_litres if (prend_carb and carburant_autorise_ce_shift) else 0.0
+                    litres_effectifs = vol_carb_camions_defaut if (prend_carb and carburant_autorise_ce_shift) else 0.0
+                    cout_carb = litres_effectifs * tarif_carb_camions
 
                     nb_bons_camion = len(camions_precedents)
                     montant_loc_base = st.session_state.tarifs["loc_12_roues"] if c_type == "12 roues" else st.session_state.tarifs["loc_10_roues"]
@@ -271,7 +276,7 @@ with tab_saisie:
                     enregistrement_bon = {
                         "ID_Unique": f"CAM-{immat}-{num_bon}-{datetime.now().strftime('%H%M%S')}",
                         "Date": str(date_op),
-                        "Shift": shift_camion,
+                        "Shift": shift_actuel,
                         "Categorie": "Camion",
                         "Type_Camion": c_type,
                         "Identifiant": immat,
@@ -290,13 +295,9 @@ with tab_saisie:
     elif type_saisie == "Chargeuse":
         cnt_ch = st.session_state.form_chargeuse_counter
         with st.form(f"form_chargeuse_{cnt_ch}"):
-            shift_chargeuse = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_ch_{cnt_ch}")
             ch_conducteur = st.text_input("Nom du conducteur de la Chargeuse", placeholder="Ex: Kouassi Jean", key=f"cond_ch_{cnt_ch}")
             
-            prend_carb_ch = st.checkbox("Prise de carburant pour ce shift (Comptabilisé 1 fois par shift)", value=True, key=f"carb_ch_{cnt_ch}")
-            ch_litres = 0.0
-            if prend_carb_ch:
-                ch_litres = st.number_input("Volume de carburant (Litres) - Ajustable", min_value=0.0, value=40.0, step=5.0, key=f"litres_ch_{cnt_ch}")
+            prend_carb_ch = st.checkbox(f"Prise de carburant ({vol_carb_chargeuses_defaut} L - Comptabilisé pour ce shift)", value=True, key=f"carb_ch_{cnt_ch}")
 
             submitted_ch = st.form_submit_button("Enregistrer la Chargeuse")
             if submitted_ch:
@@ -306,18 +307,20 @@ with tab_saisie:
                     conducteur = ch_conducteur.strip().title()
                     tarif_carb_bennes = st.session_state.tarifs["carburant_bennes"]
 
-                    cout_carb_ch = ch_litres * tarif_carb_bennes if prend_carb_ch else 0.0
+                    litres_ch_effectifs = vol_carb_chargeuses_defaut if prend_carb_ch else 0.0
+                    cout_carb_ch = litres_ch_effectifs * tarif_carb_bennes
+                    
                     conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
                         "ID_Unique": f"CH-{conducteur}-{datetime.now().strftime('%H%M%S%f')}",
                         "Date": str(date_op),
-                        "Shift": shift_chargeuse,
+                        "Shift": shift_actuel,
                         "Categorie": "Chargeuse",
                         "Conducteur": conducteur,
                         "Numero_Bon": "N/A",
-                        "Litres_Carburant": ch_litres if prend_carb_ch else 0.0,
+                        "Litres_Carburant": litres_ch_effectifs,
                         "Cout_Carburant": cout_carb_ch,
                         "Cout_Location": montant_loc_ch,
                         "Cout_Total": cout_carb_ch + montant_loc_ch
@@ -330,12 +333,11 @@ with tab_saisie:
 
     else:
         with st.form("form_personnel"):
-            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_p")
             p_agents = st.number_input("Nombre d'agents présents", min_value=0, value=5, step=1)
             p_absences = st.number_input("Nombre d'absences", min_value=0, value=0, step=1)
             
-            tarif_mo = st.session_state.tarifs["mo_jour"] if shift_pers == SHIFT_JOUR else st.session_state.tarifs["mo_nuit"]
-            st.info(f"Tarif unitaire appliqué ({shift_pers}) : {tarif_mo:,.0f} FCFA par agent présent.")
+            tarif_mo = st.session_state.tarifs["mo_jour"] if shift_actuel == SHIFT_JOUR else st.session_state.tarifs["mo_nuit"]
+            st.info(f"Tarif unitaire appliqué ({shift_actuel}) : {tarif_mo:,.0f} FCFA par agent présent.")
 
             submitted_p = st.form_submit_button("Enregistrer le Personnel")
             if submitted_p:
@@ -343,7 +345,7 @@ with tab_saisie:
                 enregistrement_p = {
                     "ID_Unique": f"MO-{datetime.now().strftime('%H%M%S')}",
                     "Date": str(date_op),
-                    "Shift": shift_pers,
+                    "Shift": shift_actuel,
                     "Categorie": "Personnel",
                     "Identifiant": "Équipe Entretien",
                     "Agents_Presents": p_agents,
@@ -381,7 +383,6 @@ with tab_bons:
 
     if st.session_state.historique_bons:
         df_historique = pd.DataFrame(st.session_state.historique_bons)
-        
         shifts_disponibles = df_historique["Shift"].unique() if "Shift" in df_historique.columns else []
         
         for s in shifts_disponibles:
@@ -531,3 +532,6 @@ with tab_rapport_global:
         )
     else:
         st.info("Aucune donnée globale disponible.")
+        49
+
+        
