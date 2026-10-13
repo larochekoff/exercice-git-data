@@ -32,7 +32,8 @@ st.set_page_config(
 # ==========================================
 if "tarifs" not in st.session_state:
     st.session_state.tarifs = {
-        "carburant": 750,
+        "carburant_camions": 750,
+        "carburant_bennes": 750,
         "loc_12_roues": 150000,
         "loc_10_roues": 120000,
         "loc_chargeuses": 100000,
@@ -148,7 +149,8 @@ def generer_pdf_global(df_all):
         recap_data = [
             ["Indicateur / Poste", "Montant / Volume Total"],
             ["Volume Total Carburant (Litres)", f"{total_litres_global:,.1f} L"],
-            ["Montant Total Carburant (Camions + Chargeuses)", f"{total_carburant_global:,.0f} FCFA"],
+            ["Montant Carburant Camions", f"{tot_carb_cam:,.0f} FCFA"],
+            ["Montant Carburant Bennes (Chargeuses)", f"{tot_carb_ch:,.0f} FCFA"],
             ["Montant Total Location (Camions + Chargeuses)", f"{total_location_global:,.0f} FCFA"],
             ["Main d'Œuvre Entretien", f"{tot_mo:,.0f} FCFA"],
             ["CUMUL TOTAL GÉNÉRAL", f"{tot_global:,.0f} FCFA"]
@@ -181,8 +183,11 @@ st.sidebar.markdown("**Système de Suivi Opérationnel**")
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ Paramètres & Tarifs")
 
-st.session_state.tarifs["carburant"] = st.sidebar.number_input(
-    "Tarif carburant standard (FCFA / litre)", min_value=0, value=st.session_state.tarifs["carburant"], step=25
+st.session_state.tarifs["carburant_camions"] = st.sidebar.number_input(
+    "Carburant Camions (FCFA / litre)", min_value=0, value=st.session_state.tarifs["carburant_camions"], step=25
+)
+st.session_state.tarifs["carburant_bennes"] = st.sidebar.number_input(
+    "Carburant Bennes (FCFA / litre)", min_value=0, value=st.session_state.tarifs["carburant_bennes"], step=25
 )
 st.session_state.tarifs["loc_12_roues"] = st.sidebar.number_input(
     "Location 12 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_12_roues"], step=5000
@@ -254,9 +259,9 @@ with tab_saisie:
                 else:
                     immat = c_immat.strip().upper()
                     num_bon = c_num_bon.strip()
-                    tarif_c = st.session_state.tarifs["carburant"]
+                    tarif_carb_camions = st.session_state.tarifs["carburant_camions"]
                     
-                    cout_carb = c_litres * tarif_c if (prend_carb and carburant_autorise_ce_shift) else 0.0
+                    cout_carb = c_litres * tarif_carb_camions if (prend_carb and carburant_autorise_ce_shift) else 0.0
                     litres_effectifs = c_litres if (prend_carb and carburant_autorise_ce_shift) else 0.0
 
                     nb_bons_camion = len(camions_precedents)
@@ -299,10 +304,9 @@ with tab_saisie:
                     st.error("Veuillez renseigner le nom du conducteur.")
                 else:
                     conducteur = ch_conducteur.strip().title()
-                    tarif_c = st.session_state.tarifs["carburant"]
+                    tarif_carb_bennes = st.session_state.tarifs["carburant_bennes"]
 
-                    cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    # Correction vérifiée de la ligne ci-dessous :
+                    cout_carb_ch = ch_litres * tarif_carb_bennes if prend_carb_ch else 0.0
                     conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
@@ -497,10 +501,10 @@ with tab_rapport_global:
             st.metric("Équivalent Cycles (2 shifts)", f"{total_cycles_glob:.1f} cycles")
         with col_g2:
             st.metric("Volume Total Carburant", f"{total_litres_global:,.1f} Litres")
-            st.metric("Montant Total Carburant", f"{total_carburant_global:,.0f} FCFA")
+            st.metric("Carburant Camions", f"{tot_carb_cam:,.0f} FCFA")
         with col_g3:
+            st.metric("Carburant Bennes", f"{tot_carb_ch:,.0f} FCFA")
             st.metric("Montant Total Location", f"{total_location_global:,.0f} FCFA")
-            st.metric("Total Main d'Œuvre", f"{tot_mo_glob:,.0f} FCFA")
         with col_g4:
             st.metric("CUMUL TOTAL GÉNÉRAL", f"{cout_total_global:,.0f} FCFA")
 
