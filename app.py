@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Rapports enrichis)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Rapports enrichis & corrigés)
 """
 import streamlit as st
 import pandas as pd
@@ -479,9 +479,9 @@ with tab_rapport_global:
         tot_mo_glob = personnel_g["Cout_Total"].sum() if not personnel_g.empty else 0
 
         total_litres_global = tot_litres_cam + tot_litres_ch
-        total_carb_global = tot_carb_cam + tot_carb_ch
-        total_loc_global = tot_loc_cam + tot_loc_ch
-        cout_total_global = total_carb_global + total_loc_global + tot_mo_glob
+        total_carburant_global = tot_carb_cam + tot_carb_ch
+        total_location_global = tot_loc_cam + tot_loc_ch
+        cout_total_global = total_carburant_global + total_location_global + tot_mo_glob
 
         col_g1, col_g2, col_g3, col_g4 = st.columns(4)
         with col_g1:
@@ -489,7 +489,7 @@ with tab_rapport_global:
             st.metric("Équivalent Cycles (2 shifts)", f"{total_cycles_glob:.1f} cycles")
         with col_g2:
             st.metric("Volume Total Carburant", f"{total_litres_global:,.1f} Litres")
-            st.metric("Montant Total Carburant", f"{total_carb_global:,.0f} FCFA")
+            st.metric("Montant Total Carburant", f"{total_carburant_global:,.0f} FCFA")
         with col_g3:
             st.metric("Montant Total Location", f"{total_location_global:,.0f} FCFA")
             st.metric("Total Main d'Œuvre", f"{tot_mo_glob:,.0f} FCFA")
