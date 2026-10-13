@@ -1,6 +1,5 @@
-        
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec option de réinitialisation)
 """
 import streamlit as st
 import pandas as pd
@@ -180,7 +179,7 @@ def generer_pdf_global(df_all):
     return buffer
 
 # ==========================================
-# 4. PANNEAU LATÉRAL : PARAMÈTRES, DATE, SHIFTS & TARIFS
+# 4. PANNEAU LATÉRAL : PARAMÈTRES, DATE, SHIFTS & RÉINITIALISATION
 # ==========================================
 st.sidebar.title("🏗️ Structure CFDAI")
 st.sidebar.markdown("**Système de Suivi Opérationnel**")
@@ -219,6 +218,21 @@ st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
 st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
     "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
 )
+
+# Option de réinitialisation sécurisée dans la sidebar
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ Zone de Danger")
+confirmer_raz = st.sidebar.checkbox("Activer la réinitialisation", key="chk_raz")
+if confirmer_raz:
+    if st.sidebar.button("🗑️ Effacer tout l'historique"):
+        st.session_state.historique_bons = []
+        if os.path.exists(FICHIER_SAUVEGARDE):
+            try:
+                os.remove(FICHIER_SAUVEGARDE)
+            except Exception:
+                pass
+        st.sidebar.success("Historique réinitialisé avec succès !")
+        st.rerun()
 
 # ==========================================
 # 5. INTERFACE PRINCIPALE
