@@ -214,7 +214,7 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant"] == immat_propre]
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant")] == immat_propre]
         
         # RÈGLE STRICTE : Si le dernier enregistrement du camion comportait du carburant (> 0L),
         # le shift suivant est AUTOMATIQUEMENT verrouillé. S'il n'y avait pas de carburant (0L),
