@@ -290,8 +290,8 @@ with tab_saisie:
                     tarif_c = st.session_state.tarifs["carburant"]
 
                     cout_carb_ch = ch_litres * tarif_c if prend_carb_ch else 0.0
-                    # Correction de la syntaxe de la ligne 294 ci-dessous :
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie"] == "Chargeuse" and b.get("Conducteur") == conducteur]
+                    # Correction corrigée ici avec les bonnes parenthèses :
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
@@ -314,7 +314,7 @@ with tab_saisie:
 
     else:
         with st.form("form_personnel"):
-            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key=f"shift_p")
+            shift_pers = st.selectbox("Sélectionnez le Shift", [SHIFT_JOUR, SHIFT_NUIT], key="shift_p")
             p_agents = st.number_input("Nombre d'agents présents", min_value=0, value=5, step=1)
             p_absences = st.number_input("Nombre d'absences", min_value=0, value=0, step=1)
             
