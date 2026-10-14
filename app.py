@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Avec option de réinitialisation)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Version Finalisée)
 """
 import streamlit as st
 import pandas as pd
@@ -32,8 +32,7 @@ st.set_page_config(
 # ==========================================
 if "tarifs" not in st.session_state:
     st.session_state.tarifs = {
-        "carburant_camions": 750,
-        "carburant_bennes": 750,
+        "carburant_universel": 750,
         "loc_12_roues": 150000,
         "loc_10_roues": 120000,
         "loc_chargeuses": 100000,
@@ -152,8 +151,7 @@ def generer_pdf_global(df_all):
         recap_data = [
             ["Indicateur / Poste", "Montant / Volume Total"],
             ["Volume Total Carburant (Litres)", f"{total_litres_global:,.1f} L"],
-            ["Montant Carburant Camions", f"{tot_carb_cam:,.0f} FCFA"],
-            ["Montant Carburant Bennes", f"{tot_carb_ch:,.0f} FCFA"],
+            ["Montant Total Carburant (Universel)", f"{total_carburant_global:,.0f} FCFA"],
             ["Montant Total Location (Camions + Chargeuses)", f"{total_location_global:,.0f} FCFA"],
             ["Main d'Œuvre Entretien", f"{tot_mo:,.0f} FCFA"],
             ["CUMUL TOTAL GÉNÉRAL", f"{tot_global:,.0f} FCFA"]
@@ -179,7 +177,7 @@ def generer_pdf_global(df_all):
     return buffer
 
 # ==========================================
-# 4. PANNEAU LATÉRAL : PARAMÈTRES, DATE, SHIFTS & RÉINITIALISATION
+# 4. PANNEAU LATÉRAL : PARAMÈTRES, DATE, SHIFTS & TARIFS
 # ==========================================
 st.sidebar.title("🏗️ Structure CFDAI")
 st.sidebar.markdown("**Système de Suivi Opérationnel**")
@@ -190,36 +188,37 @@ date_op = st.sidebar.date_input("Date du jour", value=datetime.today())
 shift_actuel = st.sidebar.selectbox("Shift actif", [SHIFT_JOUR, SHIFT_NUIT])
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("⛽ Volumes de Carburant (Litres)")
+st.sidebar.subheader("⛽ Volumes par Défaut (Litres)")
 vol_carb_camions_defaut = st.sidebar.number_input("Carburant par défaut / Camion (L)", min_value=0.0, value=0.0, step=5.0)
 vol_carb_chargeuses_defaut = st.sidebar.number_input("Carburant par défaut / Chargeuse (L)", min_value=0.0, value=0.0, step=5.0)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ Tarifs & Coûts")
 
-st.session_state.tarifs["carburant_camions"] = st.sidebar.number_input(
-    "Tarif Carburant Camions (FCFA/L)", min_value=0, value=st.session_state.tarifs["carburant_camions"], step=25
-)
-st.session_state.tarifs["carburant_bennes"] = st.sidebar.number_input(
-    "Tarif Carburant Bennes (FCFA/L)", min_value=0, value=st.session_state.tarifs["carburant_bennes"], step=25
-)
-st.session_state.tarifs["loc_12_roues"] = st.sidebar.number_input(
-    "Location 12 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_12_roues"], step=5000
-)
-st.session_state.tarifs["loc_10_roues"] = st.sidebar.number_input(
-    "Location 10 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_10_roues"], step=5000
-)
-st.session_state.tarifs["loc_chargeuses"] = st.sidebar.number_input(
-    "Location Chargeuses (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_chargeuses"], step=5000
-)
-st.session_state.tarifs["mo_jour"] = st.sidebar.number_input(
-    "Main d'œuvre Shift 08h-19h", min_value=0, value=st.session_state.tarifs["mo_jour"], step=500
-)
-st.session_state.tarifs["mo_nuit"] = st.sidebar.number_input(
-    "Main d'œuvre Shift 19h-08h", min_value=0, value=st.session_state.tarifs["mo_nuit"], step=500
+# Tarif universel unique du carburant (Camions & Bennes)
+st.session_state.tarifs["carburant_universel"] = st.sidebar.number_input(
+    "Prix Unitaire Carburant Universel (FCFA/L)", min_value=0, value=st.session_state.tarifs["carburant_universel"], step=25
 )
 
-# Option de réinitialisation sécurisée dans la sidebar
+# Maintien persistant des montants de location
+st.session_state.tarifs["loc_12_roues"] = st.sidebar.number_input(
+    "Location Camion 12 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_12_roues"], step=5000
+)
+st.session_state.tarifs["loc_10_roues"] = st.sidebar.number_input(
+    "Location Camion 10 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_10_roues"], step=5000
+)
+st.session_state.tarifs["loc_chargeuses"] = st.sidebar.number_input(
+    "Location Chargeuse / Benne (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_chargeuses"], step=5000
+)
+
+# Main d'œuvre maintenue à 5000 / 6000 FCFA
+st.session_state.tarifs["mo_jour"] = 5000
+st.session_state.tarifs["mo_nuit"] = 6000
+
+st.sidebar.markdown(f"**Main d'œuvre Shift 08h-19h :** 5,000 FCFA")
+st.sidebar.markdown(f"**Main d'œuvre Shift 19h-08h :** 6,000 FCFA")
+
+# Zone de réinitialisation
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚠️ Zone de Danger")
 confirmer_raz = st.sidebar.checkbox("Activer la réinitialisation", key="chk_raz")
@@ -238,7 +237,7 @@ if confirmer_raz:
 # 5. INTERFACE PRINCIPALE
 # ==========================================
 st.title("🚜 CFDAI - Tableau de Bord Opérationnel")
-st.markdown(f"**Contexte Actuel :** {date_op.strftime('%d/%m/%Y')} | **{shift_actuel}** (Défini dans la barre latérale)")
+st.markdown(f"**Contexte Actuel :** {date_op.strftime('%d/%m/%Y')} | **{shift_actuel}**")
 
 tab_saisie, tab_modif, tab_bons, tab_rapport_shift, tab_rapport_global = st.tabs([
     "📝 Saisie Opérationnelle", 
@@ -282,10 +281,10 @@ with tab_saisie:
                 else:
                     immat = c_immat.strip().upper()
                     num_bon = c_num_bon.strip()
-                    tarif_carb_camions = st.session_state.tarifs["carburant_camions"]
+                    tarif_carb = st.session_state.tarifs["carburant_universel"]
                     
                     litres_effectifs = vol_carb_camions_defaut if (prend_carb and carburant_autorise_ce_shift) else 0.0
-                    cout_carb = litres_effectifs * tarif_carb_camions
+                    cout_carb = litres_effectifs * tarif_carb
 
                     nb_bons_camion = len(camions_precedents)
                     montant_loc_base = st.session_state.tarifs["loc_12_roues"] if c_type == "12 roues" else st.session_state.tarifs["loc_10_roues"]
@@ -323,10 +322,10 @@ with tab_saisie:
                     st.error("Veuillez renseigner le nom du conducteur.")
                 else:
                     conducteur = ch_conducteur.strip().title()
-                    tarif_carb_bennes = st.session_state.tarifs["carburant_bennes"]
+                    tarif_carb = st.session_state.tarifs["carburant_universel"]
 
                     litres_ch_effectifs = vol_carb_chargeuses_defaut if prend_carb_ch else 0.0
-                    cout_carb_ch = litres_ch_effectifs * tarif_carb_bennes
+                    cout_carb_ch = litres_ch_effectifs * tarif_carb
                     
                     conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
@@ -529,9 +528,9 @@ with tab_rapport_global:
             st.metric("Équivalent Cycles (2 shifts)", f"{total_cycles_glob:.1f} cycles")
         with col_g2:
             st.metric("Volume Total Carburant", f"{total_litres_global:,.1f} Litres")
-            st.metric("Carburant Camions", f"{tot_carb_cam:,.0f} FCFA")
+            st.metric("Montant Total Carburant", f"{total_carburant_global:,.0f} FCFA")
         with col_g3:
-            st.metric("Carburant Bennes", f"{tot_carb_ch:,.0f} FCFA")
+            st.metric("Montant Total Location", f"{total_location_global:,.0f} FCFA")
             st.metric("Total Main d'Œuvre", f"{tot_mo_glob:,.0f} FCFA")
         with col_g4:
             st.metric("CUMUL TOTAL GÉNÉRAL", f"{cout_total_global:,.0f} FCFA")
