@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Version Finalisée)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Persistance complète des tarifs)
 """
 import streamlit as st
 import pandas as pd
@@ -19,7 +19,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # ==========================================
 SHIFT_JOUR = "Shift 08h - 19h"
 SHIFT_NUIT = "Shift 19h - 08h"
-FICHIER_SAUVEGARDE = "historique_cfdai.json"
+FICHIER_SAUVEGARDE_HISTORIQUE = "historique_cfdai.json"
+FICHIER_SAUVEGARDE_TARIFS = "config_tarifs_cfdai.json"
 
 st.set_page_config(
     page_title="CFDAI - Suivi Opérationnel Flotte & Chantiers",
@@ -28,22 +29,40 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. INITIALISATION ET PERSISTANCE ROBUSTE
+# 2. PERSISTANCE DES TARIFS & HISTORIQUE
 # ==========================================
-if "tarifs" not in st.session_state:
-    st.session_state.tarifs = {
-        "carburant_universel": 750,
-        "loc_12_roues": 150000,
-        "loc_10_roues": 120000,
-        "loc_chargeuses": 100000,
-        "mo_jour": 5000,
-        "mo_nuit": 6000
-    }
+TARIFS_DEFAUT = {
+    "carburant_universel": 750,
+    "loc_12_roues": 150000,
+    "loc_10_roues": 120000,
+    "loc_chargeuses": 100000,
+    "mo_jour": 5000,
+    "mo_nuit": 6000
+}
 
-if "historique_bons" not in st.session_state:
-    if os.path.exists(FICHIER_SAUVEGARDE):
+# Charger les tarifs sauvegardés sur disque s'ils existent
+if "tarifs" not in st.session_state:
+    if os.path.exists(FICHIER_SAUVEGARDE_TARIFS):
         try:
-            with open(FICHIER_SAUVEGARDE, "r", encoding="utf-8") as f:
+            with open(FICHIER_SAUVEGARDE_TARIFS, "r", encoding="utf-8") as f:
+                st.session_state.tarifs = json.load(f)
+        except Exception:
+            st.session_state.tarifs = TARIFS_DEFAUT.copy()
+    else:
+        st.session_state.tarifs = TARIFS_DEFAUT.copy()
+
+def sauvegarder_tarifs():
+    try:
+        with open(FICHIER_SAUVEGARDE_TARIFS, "w", encoding="utf-8") as f:
+            json.dump(st.session_state.tarifs, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde des tarifs : {e}")
+
+# Charger l'historique des opérations
+if "historique_bons" not in st.session_state:
+    if os.path.exists(FICHIER_SAUVEGARDE_HISTORIQUE):
+        try:
+            with open(FICHIER_SAUVEGARDE_HISTORIQUE, "r", encoding="utf-8") as f:
                 st.session_state.historique_bons = json.load(f)
         except Exception:
             st.session_state.historique_bons = []
@@ -52,7 +71,7 @@ if "historique_bons" not in st.session_state:
 
 def sauvegarder_donnees():
     try:
-        with open(FICHIER_SAUVEGARDE, "w", encoding="utf-8") as f:
+        with open(FICHIER_SAUVEGARDE_HISTORIQUE, "w", encoding="utf-8") as f:
             json.dump(st.session_state.historique_bons, f, ensure_ascii=False, indent=4)
     except Exception as e:
         st.error(f"Erreur lors de la sauvegarde : {e}")
@@ -193,23 +212,49 @@ vol_carb_camions_defaut = st.sidebar.number_input("Carburant par défaut / Camio
 vol_carb_chargeuses_defaut = st.sidebar.number_input("Carburant par défaut / Chargeuse (L)", min_value=0.0, value=0.0, step=5.0)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚙️ Tarifs & Coûts")
+st.sidebar.subheader("⚙️ Tarifs & Coûts Persistants")
 
-# Tarif universel unique du carburant (Camions & Bennes)
-st.session_state.tarifs["carburant_universel"] = st.sidebar.number_input(
-    "Prix Unitaire Carburant Universel (FCFA/L)", min_value=0, value=st.session_state.tarifs["carburant_universel"], step=25
+# Saisie des tarifs avec enregistrement immédiat sur disque
+nouv_carb_univ = st.sidebar.number_input(
+    "Prix Unitaire Carburant Universel (FCFA/L)", 
+    min_value=0, 
+    value=st.session_state.tarifs.get("carburant_universel", 750), 
+    step=25
 )
 
-# Maintien persistant des montants de location
-st.session_state.tarifs["loc_12_roues"] = st.sidebar.number_input(
-    "Location Camion 12 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_12_roues"], step=5000
+nouv_loc_12 = st.sidebar.number_input(
+    "Location Camion 12 roues (2 shifts)", 
+    min_value=0, 
+    value=st.session_state.tarifs.get("loc_12_roues", 150000), 
+    step=5000
 )
-st.session_state.tarifs["loc_10_roues"] = st.sidebar.number_input(
-    "Location Camion 10 roues (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_10_roues"], step=5000
+
+nouv_loc_10 = st.sidebar.number_input(
+    "Location Camion 10 roues (2 shifts)", 
+    min_value=0, 
+    value=st.session_state.tarifs.get("loc_10_roues", 120000), 
+    step=5000
 )
-st.session_state.tarifs["loc_chargeuses"] = st.sidebar.number_input(
-    "Location Chargeuse / Benne (2 shifts)", min_value=0, value=st.session_state.tarifs["loc_chargeuses"], step=5000
+
+nouv_loc_ch = st.sidebar.number_input(
+    "Location Chargeuse / Benne (2 shifts)", 
+    min_value=0, 
+    value=st.session_state.tarifs.get("loc_chargeuses", 100000), 
+    step=5000
 )
+
+# Mise à jour et sauvegarde si un tarif a changé
+if (
+    nouv_carb_univ != st.session_state.tarifs.get("carburant_universel") or
+    nouv_loc_12 != st.session_state.tarifs.get("loc_12_roues") or
+    nouv_loc_10 != st.session_state.tarifs.get("loc_10_roues") or
+    nouv_loc_ch != st.session_state.tarifs.get("loc_chargeuses")
+):
+    st.session_state.tarifs["carburant_universel"] = nouv_carb_univ
+    st.session_state.tarifs["loc_12_roues"] = nouv_loc_12
+    st.session_state.tarifs["loc_10_roues"] = nouv_loc_10
+    st.session_state.tarifs["loc_chargeuses"] = nouv_loc_ch
+    sauvegarder_tarifs()
 
 # Main d'œuvre maintenue à 5000 / 6000 FCFA
 st.session_state.tarifs["mo_jour"] = 5000
@@ -225,9 +270,9 @@ confirmer_raz = st.sidebar.checkbox("Activer la réinitialisation", key="chk_raz
 if confirmer_raz:
     if st.sidebar.button("🗑️ Effacer tout l'historique"):
         st.session_state.historique_bons = []
-        if os.path.exists(FICHIER_SAUVEGARDE):
+        if os.path.exists(FICHIER_SAUVEGARDE_HISTORIQUE):
             try:
-                os.remove(FICHIER_SAUVEGARDE)
+                os.remove(FICHIER_SAUVEGARDE_HISTORIQUE)
             except Exception:
                 pass
         st.sidebar.success("Historique réinitialisé avec succès !")
