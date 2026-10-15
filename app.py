@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Persistance complète des tarifs)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Synchronisation totale & Historique continu)
 """
 import streamlit as st
 import pandas as pd
@@ -58,7 +58,7 @@ def sauvegarder_tarifs():
     except Exception as e:
         st.error(f"Erreur lors de la sauvegarde des tarifs : {e}")
 
-# Charger l'historique des opérations
+# Charger l'historique des opérations de façon continue
 if "historique_bons" not in st.session_state:
     if os.path.exists(FICHIER_SAUVEGARDE_HISTORIQUE):
         try:
@@ -83,7 +83,55 @@ if "form_chargeuse_counter" not in st.session_state:
     st.session_state.form_chargeuse_counter = 0
 
 # ==========================================
-# 3. FONCTIONS DE GÉNÉRATION DES PDF
+# 3. FONCTION DE RECALCUL DYNAMIQUE (SYNCHRONISATION)
+# ==========================================
+def obtenir_donnees_synchronisees():
+    """Recalcule dynamiquement les coûts de l'historique en fonction des tarifs actuels."""
+    if not st.session_state.historique_bons:
+        return pd.DataFrame()
+    
+    tarifs = st.session_state.tarifs
+    data_recopiée = []
+    
+    for b in st.session_state.historique_bons:
+        item = b.copy()
+        cat = item.get("Categorie")
+        
+        if cat == "Camion":
+            litres = item.get("Litres_Carburant", 0.0)
+            item["Cout_Carburant"] = litres * tarifs.get("carburant_universel", 750)
+            
+            t_camion = item.get("Type_Camion")
+            if item.get("Cout_Location", 0) > 0:
+                item["Cout_Location"] = tarifs.get("loc_12_roues", 150000) if t_camion == "12 roues" else tarifs.get("loc_10_roues", 120000)
+            else:
+                item["Cout_Location"] = 0.0
+                
+            item["Cout_Total"] = item["Cout_Carburant"] + item["Cout_Location"]
+            
+        elif cat == "Chargeuse":
+            litres = item.get("Litres_Carburant", 0.0)
+            item["Cout_Carburant"] = litres * tarifs.get("carburant_universel", 750)
+            
+            if item.get("Cout_Location", 0) > 0:
+                item["Cout_Location"] = tarifs.get("loc_chargeuses", 100000)
+            else:
+                item["Cout_Location"] = 0.0
+                
+            item["Cout_Total"] = item["Cout_Carburant"] + item["Cout_Location"]
+            
+        elif cat == "Personnel":
+            shift = item.get("Shift")
+            agents = item.get("Agents_Presents", 0)
+            tarif_mo = tarifs.get("mo_jour", 5000) if shift == SHIFT_JOUR else tarifs.get("mo_nuit", 6000)
+            item["Cout_Total"] = agents * tarif_mo
+            
+        data_recopiée.append(item)
+        
+    return pd.DataFrame(data_recopiée)
+
+# ==========================================
+# 4. FONCTIONS DE GÉNÉRATION DES PDF
 # ==========================================
 def generer_pdf_shift(date_str, shift_str, df_shift):
     buffer = io.BytesIO()
@@ -196,7 +244,7 @@ def generer_pdf_global(df_all):
     return buffer
 
 # ==========================================
-# 4. PANNEAU LATÉRAL : PARAMÈTRES, DATE, SHIFTS & TARIFS
+# 5. PANNEAU LATÉRAL : PARAMÈTRES & TARIFS
 # ==========================================
 st.sidebar.title("🏗️ Structure CFDAI")
 st.sidebar.markdown("**Système de Suivi Opérationnel**")
@@ -214,7 +262,6 @@ vol_carb_chargeuses_defaut = st.sidebar.number_input("Carburant par défaut / Ch
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ Tarifs & Coûts Persistants")
 
-# Saisie des tarifs avec enregistrement immédiat sur disque
 nouv_carb_univ = st.sidebar.number_input(
     "Prix Unitaire Carburant Universel (FCFA/L)", 
     min_value=0, 
@@ -243,7 +290,7 @@ nouv_loc_ch = st.sidebar.number_input(
     step=5000
 )
 
-# Mise à jour et sauvegarde si un tarif a changé
+# Sauvegarde immédiate si modification des tarifs
 if (
     nouv_carb_univ != st.session_state.tarifs.get("carburant_universel") or
     nouv_loc_12 != st.session_state.tarifs.get("loc_12_roues") or
@@ -256,14 +303,13 @@ if (
     st.session_state.tarifs["loc_chargeuses"] = nouv_loc_ch
     sauvegarder_tarifs()
 
-# Main d'œuvre maintenue à 5000 / 6000 FCFA
 st.session_state.tarifs["mo_jour"] = 5000
 st.session_state.tarifs["mo_nuit"] = 6000
 
 st.sidebar.markdown(f"**Main d'œuvre Shift 08h-19h :** 5,000 FCFA")
 st.sidebar.markdown(f"**Main d'œuvre Shift 19h-08h :** 6,000 FCFA")
 
-# Zone de réinitialisation
+# Zone de réinitialisation sécurisée
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚠️ Zone de Danger")
 confirmer_raz = st.sidebar.checkbox("Activer la réinitialisation", key="chk_raz")
@@ -279,7 +325,7 @@ if confirmer_raz:
         st.rerun()
 
 # ==========================================
-# 5. INTERFACE PRINCIPALE
+# 6. INTERFACE PRINCIPALE
 # ==========================================
 st.title("🚜 CFDAI - Tableau de Bord Opérationnel")
 st.markdown(f"**Contexte Actuel :** {date_op.strftime('%d/%m/%Y')} | **{shift_actuel}**")
@@ -372,7 +418,7 @@ with tab_saisie:
                     litres_ch_effectifs = vol_carb_chargeuses_defaut if prend_carb_ch else 0.0
                     cout_carb_ch = litres_ch_effectifs * tarif_carb
                     
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
@@ -423,8 +469,8 @@ with tab_saisie:
 with tab_modif:
     st.subheader("✏️ Modification ou Suppression d'une Saisie Erronée")
     if st.session_state.historique_bons:
-        df_all = pd.DataFrame(st.session_state.historique_bons)
-        bon_ids = df_all["ID_Unique"].tolist()
+        df_all_raw = pd.DataFrame(st.session_state.historique_bons)
+        bon_ids = df_all_raw["ID_Unique"].tolist()
         bon_a_modifier = st.selectbox("Sélectionner l'opération à modifier/supprimer (par ID)", bon_ids)
         
         selected_record = next((b for b in st.session_state.historique_bons if b["ID_Unique"] == bon_a_modifier), None)
@@ -439,12 +485,14 @@ with tab_modif:
     else:
         st.info("Aucun enregistrement disponible.")
 
+# --- UTILISATION DU DATAFRAME SYNCHRONISÉ POUR LES ONGLETS SUIVANTS ---
+df_historique = obtenir_donnees_synchronisees()
+
 # --- ONGLET 3 : HISTORIQUE DES ENGINS & BONS (PAR SHIFT) ---
 with tab_bons:
     st.subheader("📋 Historique Global des Engins & Bons (Classé par Shift)")
 
-    if st.session_state.historique_bons:
-        df_historique = pd.DataFrame(st.session_state.historique_bons)
+    if not df_historique.empty:
         shifts_disponibles = df_historique["Shift"].unique() if "Shift" in df_historique.columns else []
         
         for s in shifts_disponibles:
@@ -502,9 +550,8 @@ with tab_rapport_shift:
     with c_rep_shift:
         sel_shift = st.selectbox("Shift concerné", [SHIFT_JOUR, SHIFT_NUIT], key="rep_shift")
 
-    if st.session_state.historique_bons:
-        df_hist = pd.DataFrame(st.session_state.historique_bons)
-        df_shift_filtered = df_hist[(df_hist["Date"] == str(sel_date)) & (df_hist["Shift"] == sel_shift)]
+    if not df_historique.empty:
+        df_shift_filtered = df_historique[(df_historique["Date"] == str(sel_date)) & (df_historique["Shift"] == sel_shift)]
         
         st.markdown(f"##### Activités du {sel_date} - {sel_shift}")
         if not df_shift_filtered.empty:
@@ -541,14 +588,11 @@ with tab_rapport_shift:
 with tab_rapport_global:
     st.subheader("📈 Rapport Global de Toutes les Opérations (CFDAI) & Export PDF")
     
-    if st.session_state.historique_bons:
-        df_g = pd.DataFrame(st.session_state.historique_bons)
-        
-        camions_g = df_g[df_g["Categorie"] == "Camion"]
-        chargeuses_g = df_g[df_g["Categorie"] == "Chargeuse"]
-        personnel_g = df_g[df_g["Categorie"] == "Personnel"]
+    if not df_historique.empty:
+        camions_g = df_historique[df_historique["Categorie"] == "Camion"]
+        chargeuses_g = df_historique[df_historique["Categorie"] == "Chargeuse"]
+        personnel_g = df_historique[df_historique["Categorie"] == "Personnel"]
 
-        nb_camions_total = camions_g["Identifiant"].nunique() if not camions_g.empty else 0
         total_tours_glob = len(camions_g)
         total_cycles_glob = total_tours_glob / 2.0
         
@@ -594,7 +638,7 @@ with tab_rapport_global:
             st.info("Aucun camion enregistré.")
 
         st.markdown("---")
-        pdf_global_buffer = generer_pdf_global(df_g)
+        pdf_global_buffer = generer_pdf_global(df_historique)
         st.download_button(
             label="📥 Télécharger le Rapport Global en PDF",
             data=pdf_global_buffer,
