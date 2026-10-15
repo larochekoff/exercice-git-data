@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Synchronisation totale & Historique continu)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Version Finalisée & Corrigée)
 """
 import streamlit as st
 import pandas as pd
@@ -418,7 +418,8 @@ with tab_saisie:
                     litres_ch_effectifs = vol_carb_chargeuses_defaut if prend_carb_ch else 0.0
                     cout_carb_ch = litres_ch_effectifs * tarif_carb
                     
-                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur"] == conducteur]
+                    # Correction vérifiée de la parenthèse fermante ci-dessous :
+                    conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
                     enregistrement_ch = {
