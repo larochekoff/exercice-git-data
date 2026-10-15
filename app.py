@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Version Finalisée & Corrigée)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Tarifs à zéro & Date automatique)
 """
 import streamlit as st
 import pandas as pd
@@ -32,10 +32,10 @@ st.set_page_config(
 # 2. PERSISTANCE DES TARIFS & HISTORIQUE
 # ==========================================
 TARIFS_DEFAUT = {
-    "carburant_universel": 750,
-    "loc_12_roues": 150000,
-    "loc_10_roues": 120000,
-    "loc_chargeuses": 100000,
+    "carburant_universel": 0,
+    "loc_12_roues": 0,
+    "loc_10_roues": 0,
+    "loc_chargeuses": 0,
     "mo_jour": 5000,
     "mo_nuit": 6000
 }
@@ -99,11 +99,11 @@ def obtenir_donnees_synchronisees():
         
         if cat == "Camion":
             litres = item.get("Litres_Carburant", 0.0)
-            item["Cout_Carburant"] = litres * tarifs.get("carburant_universel", 750)
+            item["Cout_Carburant"] = litres * tarifs.get("carburant_universel", 0)
             
             t_camion = item.get("Type_Camion")
             if item.get("Cout_Location", 0) > 0:
-                item["Cout_Location"] = tarifs.get("loc_12_roues", 150000) if t_camion == "12 roues" else tarifs.get("loc_10_roues", 120000)
+                item["Cout_Location"] = tarifs.get("loc_12_roues", 0) if t_camion == "12 roues" else tarifs.get("loc_10_roues", 0)
             else:
                 item["Cout_Location"] = 0.0
                 
@@ -111,10 +111,10 @@ def obtenir_donnees_synchronisees():
             
         elif cat == "Chargeuse":
             litres = item.get("Litres_Carburant", 0.0)
-            item["Cout_Carburant"] = litres * tarifs.get("carburant_universel", 750)
+            item["Cout_Carburant"] = litres * tarifs.get("carburant_universel", 0)
             
             if item.get("Cout_Location", 0) > 0:
-                item["Cout_Location"] = tarifs.get("loc_chargeuses", 100000)
+                item["Cout_Location"] = tarifs.get("loc_chargeuses", 0)
             else:
                 item["Cout_Location"] = 0.0
                 
@@ -251,6 +251,7 @@ st.sidebar.markdown("**Système de Suivi Opérationnel**")
 st.sidebar.markdown("---")
 
 st.sidebar.subheader("📅 Contexte Global")
+# Mise à jour automatique de la date du jour par défaut
 date_op = st.sidebar.date_input("Date du jour", value=datetime.today())
 shift_actuel = st.sidebar.selectbox("Shift actif", [SHIFT_JOUR, SHIFT_NUIT])
 
@@ -265,28 +266,28 @@ st.sidebar.subheader("⚙️ Tarifs & Coûts Persistants")
 nouv_carb_univ = st.sidebar.number_input(
     "Prix Unitaire Carburant Universel (FCFA/L)", 
     min_value=0, 
-    value=st.session_state.tarifs.get("carburant_universel", 750), 
+    value=st.session_state.tarifs.get("carburant_universel", 0), 
     step=25
 )
 
 nouv_loc_12 = st.sidebar.number_input(
     "Location Camion 12 roues (2 shifts)", 
     min_value=0, 
-    value=st.session_state.tarifs.get("loc_12_roues", 150000), 
+    value=st.session_state.tarifs.get("loc_12_roues", 0), 
     step=5000
 )
 
 nouv_loc_10 = st.sidebar.number_input(
     "Location Camion 10 roues (2 shifts)", 
     min_value=0, 
-    value=st.session_state.tarifs.get("loc_10_roues", 120000), 
+    value=st.session_state.tarifs.get("loc_10_roues", 0), 
     step=5000
 )
 
 nouv_loc_ch = st.sidebar.number_input(
     "Location Chargeuse / Benne (2 shifts)", 
     min_value=0, 
-    value=st.session_state.tarifs.get("loc_chargeuses", 100000), 
+    value=st.session_state.tarifs.get("loc_chargeuses", 0), 
     step=5000
 )
 
@@ -351,7 +352,7 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie"] == "Camion" and b.get("Identifiant") == immat_propre]
         
         prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
         carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
@@ -418,7 +419,6 @@ with tab_saisie:
                     litres_ch_effectifs = vol_carb_chargeuses_defaut if prend_carb_ch else 0.0
                     cout_carb_ch = litres_ch_effectifs * tarif_carb
                     
-                    # Correction vérifiée de la parenthèse fermante ci-dessous :
                     conducteur_bons = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Chargeuse" and b.get("Conducteur") == conducteur]
                     montant_loc_ch = st.session_state.tarifs["loc_chargeuses"] if (len(conducteur_bons) % 2 == 0) else 0.0
 
