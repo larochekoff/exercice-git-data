@@ -1,5 +1,5 @@
 """
-app.py: Application de Suivi Opérationnel et Financier - CFDAI (Tarifs à zéro & Date automatique)
+app.py: Application de Suivi Opérationnel et Financier - CFDAI (Version Corrigée)
 """
 import streamlit as st
 import pandas as pd
@@ -251,7 +251,6 @@ st.sidebar.markdown("**Système de Suivi Opérationnel**")
 st.sidebar.markdown("---")
 
 st.sidebar.subheader("📅 Contexte Global")
-# Mise à jour automatique de la date du jour par défaut
 date_op = st.sidebar.date_input("Date du jour", value=datetime.today())
 shift_actuel = st.sidebar.selectbox("Shift actif", [SHIFT_JOUR, SHIFT_NUIT])
 
@@ -352,7 +351,7 @@ with tab_saisie:
         c_immat = st.text_input("Matricule / Immatriculation du Camion", placeholder="Ex: CI-1234-AB", key=f"immat_c_{cnt}")
         
         immat_propre = c_immat.strip().upper() if c_immat else ""
-        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie"] == "Camion" and b.get("Identifiant") == immat_propre]
+        camions_precedents = [b for b in st.session_state.historique_bons if b.get("Categorie") == "Camion" and b.get("Identifiant") == immat_propre]
         
         prises_carburant_effectuees = sum(1 for b in camions_precedents if b.get("Litres_Carburant", 0.0) > 0)
         carburant_autorise_ce_shift = (prises_carburant_effectuees % 2 == 0)
